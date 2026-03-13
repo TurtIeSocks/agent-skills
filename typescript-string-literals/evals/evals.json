@@ -1,0 +1,23 @@
+{
+  "skill_name": "typescript-string-literals",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm refactoring a little TypeScript event system in a dashboard app. Right now everything is just `string`, but I want `on(\"userCreated\", handler)` and `emit(\"userCreated\", payload)` to be type-safe, and I'd also love derived handler names like `onUserCreated`. Can you redesign this without making the API unreadable?",
+      "expected_output": "Explains when to use literal unions versus template literal types, shows a typed event map or derived handler approach, includes runtime code plus type-level code, and calls out maintainability tradeoffs.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "My route definitions look like `/teams/:teamId/members/:memberId` and I want a `buildPath` helper that forces the right params at compile time. Every example I try widens to `string` and I lose autocomplete. Show me a clean approach and how to keep the literals narrow.",
+      "expected_output": "Uses `as const` or a similarly narrow boundary, implements route-param extraction with template literal inference, includes a runtime helper, and demonstrates the before/after developer experience.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I got a little too excited and built a giant template literal type for feature flag keys across brands, locales, and event names. Now tsserver feels awful. I still want useful autocomplete for the common cases, but I need a safer design. What would you change?",
+      "expected_output": "Recognizes the compiler-performance problem, recommends constraining or generating the key space ahead of time, suggests bailouts or branded strings, and mentions diagnostics or testing guidance instead of doubling down on the huge union.",
+      "files": []
+    }
+  ]
+}
