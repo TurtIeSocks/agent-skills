@@ -1,0 +1,56 @@
+{
+  "skill_name": "tanstack-form",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Add a contact form with name, email, and message fields. Name must be at least 2 characters, email must be valid, message must be at least 20 characters. Show validation errors inline.",
+      "expected_output": "A React component using useForm from @tanstack/react-form, Zod schema, form.Field render props with per-field onBlur validators using formSchema.shape.fieldName, Field/FieldLabel/FieldError/Input/Textarea from shadcn, isTouched && !isValid guard on errors, aria-invalid attributes, noValidate on the form, and a subscribe-gated submit button.",
+      "files": [],
+      "assertions": [
+        {"text": "Imports useForm from @tanstack/react-form", "check": "grep useForm"},
+        {"text": "Zod schema has .min(2) on name field", "check": "grep '\\.min(2'"},
+        {"text": "Zod schema validates email with .email()", "check": "grep '\\.email('"},
+        {"text": "Zod schema has .min(20) on message field", "check": "grep '\\.min(20'"},
+        {"text": "Uses form.Field render prop pattern", "check": "grep 'form\\.Field'"},
+        {"text": "Has isTouched guard before showing errors", "check": "grep 'isTouched'"},
+        {"text": "Uses aria-invalid on inputs", "check": "grep 'aria-invalid'"},
+        {"text": "Uses data-invalid on field wrapper", "check": "grep 'data-invalid'"},
+        {"text": "Uses formSchema.shape.* for per-field blur validation", "check": "grep 'formSchema\\.shape'"},
+        {"text": "Has noValidate on the form element", "check": "grep 'noValidate'"}
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Build a form where users can dynamically add up to 5 team members. Each member has a name (required) and a role (select: Engineer, Designer, PM). Users can add and remove members. Minimum 1 member required.",
+      "expected_output": "A React component using useForm with mode='array' on a form.Field, nested form.Field for name and role sub-fields, pushValue/removeValue array operations, Zod array schema with .min(1).max(5), z.enum for role, SelectTrigger with onBlur, and proper error display.",
+      "files": [],
+      "assertions": [
+        {"text": "Uses mode=\"array\" on parent form.Field", "check": "grep 'mode=\"array\"\\|mode={.array.}'"},
+        {"text": "Uses pushValue to add members", "check": "grep 'pushValue'"},
+        {"text": "Uses removeValue to delete members", "check": "grep 'removeValue'"},
+        {"text": "Zod schema has .min(1) on array", "check": "grep '\\.min(1'"},
+        {"text": "Zod schema has .max(5) on array", "check": "grep '\\.max(5'"},
+        {"text": "Uses nested form.Field for sub-fields", "check": "grep -c 'form\\.Field'"},
+        {"text": "Has isTouched guard before showing errors", "check": "grep 'isTouched'"},
+        {"text": "Uses z.enum for role field", "check": "grep 'z\\.enum'"},
+        {"text": "SelectTrigger has onBlur handler", "check": "grep 'SelectTrigger'"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create a signup form with email, password (min 8 chars), and confirm password. The confirm password field should re-validate in real time whenever the password field changes, showing a 'Passwords do not match' error.",
+      "expected_output": "A React component using useForm, form.Field for each field, onChangeListenTo: ['password'] on the confirmPassword field, a validator that reads the password value via fieldApi.form.getFieldValue, noValidate on form, and proper error display with isTouched guard.",
+      "files": [],
+      "assertions": [
+        {"text": "Uses onChangeListenTo referencing password field", "check": "grep 'onChangeListenTo'"},
+        {"text": "Reads password via getFieldValue", "check": "grep 'getFieldValue'"},
+        {"text": "Has 'Passwords do not match' error message", "check": "grep -i 'do not match\\|don.t match'"},
+        {"text": "Has isTouched guard before showing errors", "check": "grep 'isTouched'"},
+        {"text": "Password field has min 8 validation", "check": "grep '\\.min(8\\|length < 8'"},
+        {"text": "Email field present with validation", "check": "grep 'email'"},
+        {"text": "Has noValidate on the form element", "check": "grep 'noValidate'"},
+        {"text": "Uses autoComplete on password fields", "check": "grep 'autoComplete\\|autocomplete'"}
+      ]
+    }
+  ]
+}
