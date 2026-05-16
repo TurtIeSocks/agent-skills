@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Leaflet Map</title>
+
+  <!-- Leaflet CSS — load before script -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin="" />
+
+  <style>
+    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+    #map { height: 100%; width: 100%; }
+
+    /* Optional: style a custom div-icon */
+    .number-pin {
+      display: grid; place-items: center;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: #ef4444;
+      color: white;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""></script>
+
+  <script>
+    // ---- Map ----
+    const map = L.map('map').setView([51.505, -0.09], 13);
+
+    // ---- Basemap ----
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+
+    // ---- Markers ----
+    const points = [
+      { lat: 51.5074, lng: -0.1278, label: 'London' },
+      { lat: 51.5152, lng: -0.0820, label: 'City of London' },
+      { lat: 51.4994, lng: -0.1245, label: 'Westminster' },
+    ];
+
+    const group = L.featureGroup(
+      points.map((p, i) =>
+        L.marker([p.lat, p.lng], {
+          icon: L.divIcon({
+            className: 'number-pin-wrapper',
+            html: `<div class="number-pin">${i + 1}</div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+          }),
+        }).bindPopup(`<b>${p.label}</b>`)
+      )
+    ).addTo(map);
+
+    // Fit to all markers
+    map.fitBounds(group.getBounds(), { padding: [40, 40] });
+
+    // ---- Click to log coordinates ----
+    map.on('click', (e) => {
+      console.log(`[${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}]`);
+    });
+
+    // ---- Controls ----
+    L.control.scale({ imperial: false }).addTo(map);
+  </script>
+</body>
+</html>
