@@ -41,19 +41,30 @@ State the scope back to the user in one line *before* you write the whole thing,
 
 If the target is enormous (an entire app), don't trace everything. Pick the main **happy path**, name it explicitly, and offer to trace edge paths separately. A trace that tries to cover every branch at once reads like a tax form.
 
-### Step 2 — Pick the voice (ask the user)
+### Step 2 — Ask how to write it: voice + direction
 
-The voice level changes literally every sentence you're about to write, so it's cheap to ask now and miserable to rewrite later. **Unless the user has already told you how technical to be, ask them before writing.** If you can show tappable options, offer exactly these three; otherwise ask in one line.
+Two choices shape the entire document, so settle both *before* writing — they're cheap to ask now and miserable to undo after 400 lines. **Unless the user has already told you, ask both in one round.** If you can show tappable options, ask them together (two questions, one prompt) rather than making the user answer, wait, answer again. Otherwise ask in one or two lines.
+
+**Question 1 — Voice** (how technical?). Offer exactly these three:
 
 1. **Full ELI5** — assume the reader can't code at all. Metaphors over mechanics; every technical thing gets a plain-English stand-in. ("The server checks if the secret handshake matches before letting the message in.")
 2. **Dev-savvy plain language** *(the usual default if they shrug)* — the reader codes but has never seen *this* codebase. Plain narrative sentences, but real terms are fine as long as each one is explained the first time it shows up. ("It verifies the HMAC — a fingerprint of the body signed with a shared secret — to prove the payload wasn't tampered with.")
 3. **Match the code's complexity** — mirror the sophistication of the code itself, for a senior reader joining the project. Minimal hand-holding, still strictly sequential and narrative.
 
-Whatever they pick, the *structure* below stays the same — only the wording gets simpler or denser.
+**Question 2 — Direction** (where does the reader's understanding start?). Offer these two:
 
-### Step 3 — Walk it in execution order
+1. **Top-down** *(the usual default)* — start at the entry point and dive into each piece as the program reaches it. The reader follows the story from the front door inward, meeting helpers exactly when they're called. Best for "how does this whole feature work, end to end."
+2. **Bottom-up** — define the small building blocks first, each as a self-contained "here's what this piece does" (in dependency order, leaves before the things that use them), *then* narrate the entry-point flow that wires them together. The reader learns the vocabulary before the plot. Best when the helpers are unfamiliar or interesting, or the code is dense with little functions you'd want defined before the story starts.
 
-Read the code and follow it the way the computer would, not the way the file is laid out. Functions defined at the bottom of a file might run first; imported helpers run in the middle of the story. Order the trace by **what happens when**, not by line number.
+Voice controls *wording*; direction controls *ordering*. They're independent — any of the six combinations is valid. The honesty rule and the anchors never change regardless.
+
+### Step 3 — Walk it (order depends on the direction they chose)
+
+Whichever direction, you still read the code the way the computer would — functions defined at the bottom of a file might run first; imported helpers run in the middle of the story. You never narrate code in the order it's *written*. What the direction changes is where you *begin*.
+
+**If top-down:** order the walkthrough by **what happens when**, from the entry point forward. When the flow calls a helper, narrate that helper right there, at the moment it's reached.
+
+**If bottom-up:** first write a short **"The building blocks"** section — one small entry per leaf/helper the flow depends on, in dependency order (define a thing before the things that use it), each explaining what that piece does in isolation. Then write the **walkthrough** of the entry-point flow, which can now refer back to those pieces by name ("...then it calls `isValid` — the check we covered above — and...") instead of diving in. The assembly narration is *still* in execution order; you've just defined the parts first so the plot reads cleanly.
 
 As you walk, watch for the four things the duck cares about most, because these are where bugs and surprises live:
 
@@ -63,6 +74,18 @@ As you walk, watch for the four things the duck cares about most, because these 
 - **🤫 Silent stuff** — swallowed errors (`catch {}`), default fallbacks, implicit type coercions, values that get quietly overwritten. These are the steps the original author forgot they wrote.
 
 You don't need to label all four in the prose with emoji on every line — that gets noisy. Use the labels in the dedicated section (below) and mention forks/side effects inline where they're load-bearing to the story.
+
+**Domain playbooks — read one if it matches.** Those four traps are *universal*. Some kinds of code also carry their own recurring gotchas that are easy to miss unless you know to look for them — React's render/effect timing, async runtimes, message queues, query planners. If what you're tracing matches a row below, skim that playbook *before* you walk the code, so its domain-specific traps land in both your walkthrough and your "squint" section. If nothing matches, just lean on the four universal traps — most traces don't need a playbook.
+
+| If you're tracing… | Read first |
+|---|---|
+| React components — renders, hooks, `useEffect`, state updates, re-render loops | `references/tracing-react.md` |
+| Async JavaScript — `async`/`await`, promises, `setTimeout`, callback ordering, "why did this log out of order" | `references/tracing-async-js.md` |
+| Go concurrency — goroutines (`go`), channels, `select`, `WaitGroup`, deadlocks & leaks | `references/tracing-go-concurrency.md` |
+| Rust async — `async fn`, `.await`, `tokio::spawn`, `join!`/`select!`, "why didn't this run" | `references/tracing-rust-futures.md` |
+| Message queues & event-driven flows — producers/consumers, brokers (Kafka/SQS/RabbitMQ), acks, retries, DLQs, duplicate/out-of-order delivery | `references/tracing-message-queues.md` |
+
+**Adding a playbook later:** when you catch yourself re-deriving the same domain gotchas across traces, write them down once as `references/tracing-<domain>.md` (mirror the React one's shape — mental model first, then that domain's flavor of the four traps, then a right-vs-wrong phrasing example) and add a row above. Strong candidates not yet written: SQL `EXPLAIN` plans, React Native bridges, browser layout/reflow. Don't pre-write these — only add a playbook once a real trace would have benefited from it, so each one earns its place.
 
 ### Step 4 — Write the file
 
@@ -81,7 +104,15 @@ Use this structure. The duck emoji in the title is a light signature, not a mand
 
 **In one sentence:** <what this whole thing does, in language the chosen voice level would use>
 
-> **Traced:** `<entry point>` → `<exit point>` · **Voice:** <ELI5 | Dev-savvy | Matched> · **Files:** `<main files touched>`
+> **Traced:** `<entry point>` → `<exit point>` · **Voice:** <ELI5 | Dev-savvy | Matched> · **Direction:** <Top-down | Bottom-up> · **Files:** `<main files touched>`
+
+<!-- BOTTOM-UP ONLY: include this section only when the chosen direction is bottom-up; omit it entirely for top-down. -->
+## The building blocks
+
+The small pieces this is built from, defined before we wire them together:
+
+- **`<helperName>`** (`path/file.ts:NN`) — <what this piece does on its own, in the chosen voice>.
+- **`<helperName>`** (`path/file.ts:NN`) — <...>. (Order these so nothing is mentioned before it's defined.)
 
 ## The walkthrough
 
@@ -115,6 +146,7 @@ The spots most likely to hide a bug or surprise a future reader:
 ### Why this shape
 
 - **The one-sentence summary** lets someone decide in three seconds whether this is the trace they need.
+- **"The building blocks"** (bottom-up only) gives the reader the vocabulary before the plot, so the walkthrough can name pieces instead of constantly diving into them.
 - **The numbered walkthrough** *is* the rubber-duck narration — "first X, then Y, then Z." Numbers (not bullets) because order is the entire point.
 - **The anchors** (`file.ts:NN`) keep it honest and let readers jump to the real code.
 - **"Where the duck would squint"** is the debugging payoff — it's why this is a debugging method and not just a tour.
@@ -122,7 +154,7 @@ The spots most likely to hide a bug or surprise a future reader:
 
 ## Things that quietly wreck a trace
 
-- **Narrating the file top-to-bottom instead of in run order.** If you catch yourself describing code in the order it's *written*, stop and re-sequence by what *executes*.
+- **Narrating the file top-to-bottom instead of in run order.** If you catch yourself describing code in the order it's *written*, stop and re-sequence by what *executes*. (Bottom-up is not an exception — its "building blocks" are ordered by dependency, and its walkthrough still runs in execution order. Neither is "read the file top to bottom.")
 - **Skipping the boring glue.** "It maps the rows to DTOs" is a real step if it's where a field gets dropped. Boring-looking lines are where bugs hide.
 - **Over-labeling.** Don't slap 🔀⚠️⏳🤫 on every line. Reserve the emphasis for steps that actually carry risk, or the signal stops meaning anything.
 - **Drifting voice.** If they picked ELI5, "instantiates a singleton" is a failure even once. Re-read your draft as the chosen reader and fix any word they wouldn't know.
@@ -130,4 +162,4 @@ The spots most likely to hide a bug or surprise a future reader:
 
 ## Worked example
 
-See `references/example-trace.md` for a full trace (a webhook request through signature verification into an agent dispatch) written in the dev-savvy voice, plus a short side-by-side showing how the *same* opening step reads in all three voices. Read it before your first trace to calibrate the quality bar.
+See `references/example-trace.md` for a full trace (a webhook request through signature verification into an agent dispatch) written top-down in the dev-savvy voice, plus a side-by-side of the *same* opening step in all three voices, and a short illustration of how the same trace reorganizes when the user picks **bottom-up**. Read it before your first trace to calibrate the quality bar.

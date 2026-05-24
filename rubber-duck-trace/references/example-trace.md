@@ -10,7 +10,7 @@ The point of including a full example: notice that every step has an anchor, the
 
 **In one sentence:** GitHub POSTs an event to our server; we check it's genuinely from GitHub, figure out which agent should handle it, kick that agent off in the background, and immediately tell GitHub "got it" so it doesn't retry.
 
-> **Traced:** `POST /webhook` → `202` response · **Voice:** Dev-savvy · **Files:** `src/server.ts`, `src/dispatch.ts`, `src/agents/runner.ts`
+> **Traced:** `POST /webhook` → `202` response · **Voice:** Dev-savvy · **Direction:** Top-down · **Files:** `src/server.ts`, `src/dispatch.ts`, `src/agents/runner.ts`
 
 ## The walkthrough
 
@@ -64,3 +64,28 @@ This is step 1 above, rewritten for each voice level. Same fact, same anchor —
 > Entry is the `/webhook` POST handler (`src/server.ts:18`). The request is unvalidated on arrival; the body must be read raw (not as parsed JSON) so the HMAC in the next step is computed over the exact bytes GitHub signed.
 
 Notice none of them lie or add steps — they just dial the vocabulary and hand-holding up or down. Pick the voice the user chose and keep it consistent for the whole trace.
+
+---
+
+## The same trace, but bottom-up
+
+The full trace above is **top-down**: it starts at the front door and meets each piece as the request reaches it. If the user picks **bottom-up** instead, you define the building blocks first, then assemble. Same facts, same anchors, same honesty — only the *order the reader meets things* changes. The opening would look like this:
+
+> ## The building blocks
+>
+> The pieces the webhook flow leans on, defined before we wire them together:
+>
+> - **`verifySignature(body, header)`** (`src/server.ts:31`) — recomputes an HMAC-SHA256 fingerprint of the raw body using our shared secret and compares it (timing-safe) to the header GitHub sent. Returns true only if the request genuinely came from GitHub.
+> - **`route(event, action)`** (`src/dispatch.ts:12`) — a lookup that maps a `(event, action)` pair like `issues/opened` to the agent that should handle it, or `null` if nothing matches.
+> - **`runAgent(agent, payload)`** (`src/agents/runner.ts:9`) — the long-running tool-calling loop; given an agent and a payload, it does the actual work until it finishes or hits `MAX_TOOL_ROUNDS`.
+>
+> ## The walkthrough
+>
+> Now that we know the parts, here's how a request wires them together:
+>
+> 1. **It starts when Hono receives the POST** (`src/server.ts:18`) and reads the raw body...
+> 2. **It calls `verifySignature`** (the check we defined above) — if it fails, `401` and we're done...
+> 3. *...(continues in execution order, now referring to the blocks by name instead of diving into each one)...*
+
+The walkthrough is *still* in execution order — bottom-up doesn't run the program backwards. It just front-loads the definitions so the assembly reads as a clean story instead of constantly pausing to explain a helper mid-sentence. Reach for it when the helpers are the unfamiliar part; reach for top-down when the *flow* is what the reader cares about.
+
