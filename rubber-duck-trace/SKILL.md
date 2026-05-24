@@ -1,13 +1,13 @@
 ---
 name: rubber-duck-trace
-description: Document how a piece of code actually works by tracing its execution from beginning to end as a plain-language, sequential story — the "rubber duck" method ("first it does X, then Y, then Z"). The user points at a target (a function, an API/request lifecycle, a class, a CLI command, a webhook handler, a data transformation, a variable's journey, or a bug's path) and the finished trace is saved to a committable markdown file. Use this whenever the user wants to understand, explain, walk through, narrate, or document the flow / control flow / execution path of code step by step — e.g. "how does login actually work", "trace the request lifecycle", "walk me through this function", "rubber duck this for me", "document what happens when a user clicks submit", "explain this module's data flow". Trigger even when the user never says "rubber duck" or "trace" by name but is clearly asking for a step-by-step account of how something runs at runtime.
+description: Document, explain, or debug how code works by tracing its execution from start to finish as a plain-language, sequential story — the "rubber duck" method ("first it does X, then Y, then Z"). The user points at a target (a function, request/API lifecycle, class, webhook handler, data flow, or a bug's path); the skill picks or infers a mode — documentation (writes a committable markdown file), explanation (in-chat only), or debugging (asks expected vs actual, then traces toward the symptom and names the likely culprit step). Use whenever someone wants to understand, walk through, narrate, or document a code flow / execution path step by step — "how does login work", "trace the request lifecycle", "walk me through this function", "rubber duck this". ALSO for debugging asks about a runtime flow — "why does this return null", "this should do X but does Y", "where's the bug". Triggers even without the words "rubber duck" or "trace" when someone wants a step-by-step account of how code runs, or why it runs wrong.
 ---
 
 # Rubber Duck Trace
 
 You are explaining a piece of code to a rubber duck. The duck knows nothing, never interrupts, and is unimpressed by jargon — so you have to say what the code *actually does*, in order, in plain words. That discipline is the whole point: narrating real execution step by step is how programmers find the gap between what they *think* the code does and what it *really* does. A good trace is documentation **and** a bug-finding tool at the same time.
 
-The deliverable is a markdown file the user can drop into their `docs/` folder and commit.
+What the trace *produces* depends on the mode the user picks (Step 2): a committable markdown file (**documentation**), an in-chat walkthrough (**explanation**), or an in-session diagnosis that points at the likely culprit (**debugging**). The engine underneath is identical in all three — an honest, anchored, execution-order trace; the mode only changes where it lands and what it emphasizes.
 
 ## The one rule that matters most
 
@@ -41,22 +41,28 @@ State the scope back to the user in one line *before* you write the whole thing,
 
 If the target is enormous (an entire app), don't trace everything. Pick the main **happy path**, name it explicitly, and offer to trace edge paths separately. A trace that tries to cover every branch at once reads like a tax form.
 
-### Step 2 — Ask how to write it: voice + direction
+### Step 2 — Settle the approach: mode, then voice + direction
 
-Two choices shape the entire document, so settle both *before* writing — they're cheap to ask now and miserable to undo after 400 lines. **Unless the user has already told you, ask both in one round.** If you can show tappable options, ask them together (two questions, one prompt) rather than making the user answer, wait, answer again. Otherwise ask in one or two lines.
+Up to three quick choices shape everything below, so settle them *before* you write a word. **Infer whatever the request already implies, and only ask what's genuinely open** — then ask the open ones together in one tappable round rather than making the user answer, wait, answer again.
 
-**Question 1 — Voice** (how technical?). Offer exactly these three:
+**Question 1 — Mode** (what should this produce?). Usually obvious from how the request is phrased — infer it when so, ask only when unclear:
+
+1. **Documentation** *(default when unclear)* — write the full trace to a committable markdown file (the **Output format** below). Phrases like "document…", "write up how…", "add docs for…".
+2. **Explanation** — the *same* trace delivered **inline in chat**, no file. Phrases like "explain…", "walk me through…", "how does … work", "rubber duck this".
+3. **Debugging** — something's wrong and the user is hunting it. Phrases like "why does … return null / fail / hang", "this should do X but does Y", "where's the bug", "help me figure out why…". **In this mode, read `references/debugging-mode.md` and follow it** — it changes the workflow (interview for the symptom *first*, then trace *toward* it and rank suspects) and the output shape. You can stop reading the rest of this step's "direction" guidance; debugging always follows the failing path top-down.
+
+**Question 2 — Voice** (how technical?) — applies to every mode. Offer exactly these three:
 
 1. **Full ELI5** — assume the reader can't code at all. Metaphors over mechanics; every technical thing gets a plain-English stand-in. ("The server checks if the secret handshake matches before letting the message in.")
 2. **Dev-savvy plain language** *(the usual default if they shrug)* — the reader codes but has never seen *this* codebase. Plain narrative sentences, but real terms are fine as long as each one is explained the first time it shows up. ("It verifies the HMAC — a fingerprint of the body signed with a shared secret — to prove the payload wasn't tampered with.")
 3. **Match the code's complexity** — mirror the sophistication of the code itself, for a senior reader joining the project. Minimal hand-holding, still strictly sequential and narrative.
 
-**Question 2 — Direction** (where does the reader's understanding start?). Offer these two:
+**Question 3 — Direction** (where does the reader's understanding start?) — documentation & explanation only; skip for debugging. Offer these two:
 
 1. **Top-down** *(the usual default)* — start at the entry point and dive into each piece as the program reaches it. The reader follows the story from the front door inward, meeting helpers exactly when they're called. Best for "how does this whole feature work, end to end."
 2. **Bottom-up** — define the small building blocks first, each as a self-contained "here's what this piece does" (in dependency order, leaves before the things that use them), *then* narrate the entry-point flow that wires them together. The reader learns the vocabulary before the plot. Best when the helpers are unfamiliar or interesting, or the code is dense with little functions you'd want defined before the story starts.
 
-Voice controls *wording*; direction controls *ordering*. They're independent — any of the six combinations is valid. The honesty rule and the anchors never change regardless.
+Mode picks the deliverable, voice the wording, direction the ordering. Infer the obvious ones, ask the rest in one round, and don't re-ask anything the request already answered. The honesty rule and the anchors never change regardless.
 
 ### Step 3 — Walk it (order depends on the direction they chose)
 
@@ -75,6 +81,8 @@ As you walk, watch for the four things the duck cares about most, because these 
 
 You don't need to label all four in the prose with emoji on every line — that gets noisy. Use the labels in the dedicated section (below) and mention forks/side effects inline where they're load-bearing to the story.
 
+**In debugging mode**, you walk with a *fifth* question running alongside those four — *could this step produce the reported symptom?* — marking each step as consistent, ruled-out, or suspect. The full method (symptom interview, suspect ranking, how-to-confirm) lives in `references/debugging-mode.md`.
+
 **Domain playbooks — read one if it matches.** Those four traps are *universal*. Some kinds of code also carry their own recurring gotchas that are easy to miss unless you know to look for them — React's render/effect timing, async runtimes, message queues, query planners. If what you're tracing matches a row below, skim that playbook *before* you walk the code, so its domain-specific traps land in both your walkthrough and your "squint" section. If nothing matches, just lean on the four universal traps — most traces don't need a playbook.
 
 | If you're tracing… | Read first |
@@ -87,17 +95,15 @@ You don't need to label all four in the prose with emoji on every line — that 
 
 **Adding a playbook later:** when you catch yourself re-deriving the same domain gotchas across traces, write them down once as `references/tracing-<domain>.md` (mirror the React one's shape — mental model first, then that domain's flavor of the four traps, then a right-vs-wrong phrasing example) and add a row above. Strong candidates not yet written: SQL `EXPLAIN` plans, React Native bridges, browser layout/reflow. Don't pre-write these — only add a playbook once a real trace would have benefited from it, so each one earns its place.
 
-### Step 4 — Write the file
+### Step 4 — Deliver (depends on the mode)
 
-Save a markdown file using the structure in **Output format** below. Name it after the target: `trace-login-flow.md`, `trace-order-pipeline.md`, etc. Default location is the user's docs folder if one is obvious; otherwise put it where they're working and tell them the path.
-
-### Step 5 — Hand it over
-
-Save the file, then give the user a **one- or two-sentence** inline recap and the path — not a re-explanation of the whole thing. They asked for a file; the file is the deliverable. If your trace surfaced a likely bug or a genuinely surprising step, *that's* worth calling out inline ("heads up — the trace found that errors in the payment step get swallowed silently at `checkout.ts:88`").
+- **Documentation:** save a markdown file using the **Output format** below, named after the target (`trace-login-flow.md`, `trace-order-pipeline.md`). Put it in the user's docs folder if one's obvious, otherwise where they're working — then give a **one- or two-sentence** inline recap plus the path, not a re-explanation of the whole thing. If the trace surfaced a likely bug or a genuinely surprising step, call *that* out inline ("heads up — errors in the payment step get swallowed at `checkout.ts:88`").
+- **Explanation:** deliver the *same* structure **inline in chat** — drop the file and the metadata blockquote, keep the numbered walkthrough, the "where the duck would squint" list, and the one-paragraph recap. Don't write a file unless the user also asks to save it.
+- **Debugging:** follow `references/debugging-mode.md` — deliver the trace inline with the prime-suspect analysis and a cheap way to confirm it. Write a file too only if the user wants the diagnosis saved.
 
 ## Output format
 
-Use this structure. The duck emoji in the title is a light signature, not a mandate — if the user's existing docs are emoji-free or this is going into a formal repo, drop it (and the section-header emoji) and keep the same structure.
+This template is the **documentation** deliverable. **Explanation** mode reuses the exact same shape inline, minus the metadata blockquote and without writing a file. **Debugging** mode uses the variant in `references/debugging-mode.md`. The duck emoji in the title is a light signature, not a mandate — if the user's existing docs are emoji-free or this is going into a formal repo, drop it (and the section-header emoji) and keep the same structure.
 
 ```markdown
 # 🦆 Trace: <plain name of what's being traced>
