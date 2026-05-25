@@ -1,6 +1,6 @@
 ---
 name: rubber-duck-trace
-description: Document, explain, or debug how code works by tracing its execution from start to finish as a plain-language, sequential story — the "rubber duck" method ("first it does X, then Y, then Z"). The user points at a target (a function, request/API lifecycle, class, webhook handler, data flow, or a bug's path); the skill picks or infers a mode — documentation (writes a committable markdown file), explanation (in-chat only), or debugging (asks expected vs actual, then traces toward the symptom and names the likely culprit step). Use whenever someone wants to understand, walk through, narrate, or document a code flow / execution path step by step — "how does login work", "trace the request lifecycle", "walk me through this function", "rubber duck this". ALSO for debugging asks about a runtime flow — "why does this return null", "this should do X but does Y", "where's the bug". Triggers even without the words "rubber duck" or "trace" when someone wants a step-by-step account of how code runs, or why it runs wrong.
+description: Use when someone wants to understand, walk through, narrate, or document how code runs — step by step from start to finish, as a plain-language sequential story (the "rubber duck" method). Triggers include "how does login work", "trace the request lifecycle", "walk me through this function", "rubber duck this", "explain this code path". ALSO triggers for debugging asks about a runtime flow: "why does this return null", "this should do X but does Y", "where's the bug", "help me find why X fails". ALSO for value origin/destination questions ("where does this value come from", "where does X get set", "trace this variable backwards"), for "trace this PR / explain this diff / walk me through what this commit changes", and for "what does this test actually verify". Triggers even without the words "rubber duck" or "trace" whenever the user wants a step-by-step account of how code runs, or why it runs wrong.
 ---
 
 # Rubber Duck Trace
@@ -50,6 +50,7 @@ Up to three quick choices shape everything below, so settle them *before* you wr
 1. **Documentation** *(default when unclear)* — write the full trace to a committable markdown file (the **Output format** below). Phrases like "document…", "write up how…", "add docs for…".
 2. **Explanation** — the *same* trace delivered **inline in chat**, no file. Phrases like "explain…", "walk me through…", "how does … work", "rubber duck this".
 3. **Debugging** — something's wrong and the user is hunting it. Phrases like "why does … return null / fail / hang", "this should do X but does Y", "where's the bug", "help me figure out why…". **In this mode, read `references/debugging-mode.md` and follow it** — it changes the workflow (interview for the symptom *first*, then trace *toward* it and rank suspects) and the output shape. You can stop reading the rest of this step's "direction" guidance; debugging always follows the failing path top-down.
+4. **Diff trace** — explain what a *change* makes the program do differently, walked in execution order with before/after at each touched step. Phrases like "trace this PR", "walk me through what this diff changes", "explain the behavior change in this commit", "what does this PR actually do at runtime". **In this mode, read `references/diff-trace-mode.md` and follow it** — it changes the workflow (read the diff *first* to lock the changed-line set) and the output shape (paired pre/post walkthrough ending in a behavioral delta).
 
 **Question 2 — Voice** (how technical?) — applies to every mode. Offer exactly these three:
 
@@ -57,7 +58,15 @@ Up to three quick choices shape everything below, so settle them *before* you wr
 2. **Dev-savvy plain language** *(the usual default if they shrug)* — the reader codes but has never seen *this* codebase. Plain narrative sentences, but real terms are fine as long as each one is explained the first time it shows up. ("It verifies the HMAC — a fingerprint of the body signed with a shared secret — to prove the payload wasn't tampered with.")
 3. **Match the code's complexity** — mirror the sophistication of the code itself, for a senior reader joining the project. Minimal hand-holding, still strictly sequential and narrative.
 
-**Question 3 — Direction** (where does the reader's understanding start?) — documentation & explanation only; skip for debugging. Offer these two:
+**Calibration check** — if you can't tell which voice you wrote in, re-read one paragraph and ask: how did you treat the first jargon term (say, `HMAC`, `singleton`, `monad`, `goroutine`)?
+
+- Compared it to something from outside coding ("a fingerprint of the body," "mailing the letter to one specific clerk")? → **voice 1 (ELI5)**.
+- Used the real term and gave a one-clause definition the first time ("an HMAC — a fingerprint of the body signed with a shared secret")? → **voice 2 (Dev-savvy)**.
+- Used it bare, no explanation, expecting the reader to know it? → **voice 3 (Matched)**.
+
+Pick one and stay there. Drifting between voices mid-trace is the most common reason readers bounce out — voice 2 that suddenly drops `monad` reads as if it stopped trusting them.
+
+**Question 3 — Direction** (where does the reader's understanding start?) — documentation & explanation only; skip for debugging and diff trace (both are always top-down along the failing/changed path). Offer these two:
 
 1. **Top-down** *(the usual default)* — start at the entry point and dive into each piece as the program reaches it. The reader follows the story from the front door inward, meeting helpers exactly when they're called. Best for "how does this whole feature work, end to end."
 2. **Bottom-up** — define the small building blocks first, each as a self-contained "here's what this piece does" (in dependency order, leaves before the things that use them), *then* narrate the entry-point flow that wires them together. The reader learns the vocabulary before the plot. Best when the helpers are unfamiliar or interesting, or the code is dense with little functions you'd want defined before the story starts.
@@ -83,6 +92,51 @@ You don't need to label all four in the prose with emoji on every line — that 
 
 **In debugging mode**, you walk with a *fifth* question running alongside those four — *could this step produce the reported symptom?* — marking each step as consistent, ruled-out, or suspect. The full method (symptom interview, suspect ranking, how-to-confirm) lives in `references/debugging-mode.md`.
 
+#### When to walk in vs summarize a call
+
+The trace can grow without limit if you walk into every function the entry point reaches. Don't. The reader is following a *story*; every function you dive into is a parenthetical they have to remember to come back from. Use this rule:
+
+- **Walk in** when the call carries one or more of: a fork, a side effect, an async handoff, swallowed errors, a value transformation that *matters* to the story, or a domain-playbook trap.
+- **Summarize in one beat** when the call is a leaf helper that does what its name says ("`toLower(s)` lowercases the string"), a trivial wrapper that just reorders args, or a third-party library call you can't read.
+- **Mention and stop** when the call leaves the code you have access to (a `fetch()` to an external service, a binding into a native library). Say "from here it hands off to `<thing>`, which I haven't traced" rather than improvising the other side.
+- **Reference back, don't re-narrate** when a helper has already appeared earlier in the trace. ("Then it calls `verifySignature` again — same check as step 3.") Repetition makes the trace longer without adding information.
+
+A useful self-check: if a step's narration is just *re-stating its name in a sentence*, you walked in for nothing — replace the dive with one summary beat and keep moving.
+
+#### Tracing a value (data-flow), not a control path
+
+Most traces follow what the program *does*. Some asks are really about what a *value* does — "where does this null come from", "where does `user.role` get set", "what gets done to `body` between input and the DB." That's a **data-flow trace**, and it runs in the opposite direction of a normal one:
+
+- **Start at the value** at the moment the user is asking about — a return, an assertion failure, a row written to a DB.
+- **Walk backwards** through assignments and arguments to where the value was *first set or computed*. At each step say what shape/transform the value had at that moment.
+- **Branch backwards at every assignment** — if it was set in two places (conditional branches), narrate both possible origins.
+- **Stop when you reach** a literal, a function parameter from outside the traced scope, or an external input (HTTP body, env var, DB read).
+
+The output shape is the same numbered walkthrough; the steps just flow from effect back to cause. The honesty rule is *especially* load-bearing here — guessing a value's origin sends the reader hours in the wrong direction.
+
+#### Optional: a tiny sequence diagram on top
+
+When the trace has **3+ forks or 2+ async handoffs** (queues, fire-and-forget, parallel awaits), consider opening with a small mermaid sequence diagram so the reader sees the topology *before* reading the narrative. It's a navigation aid, not a replacement.
+
+````markdown
+```mermaid
+sequenceDiagram
+    GitHub->>Server: POST /webhook
+    Server->>Server: verify HMAC
+    alt signature invalid
+        Server-->>GitHub: 401
+    else valid
+        Server->>Dispatcher: route(event)
+        Server-->>GitHub: 202 (immediate)
+        Note over Server,Agent: detached from request
+        Server->>Agent: runAgent (no await)
+        Agent->>Agent: tool loop
+    end
+```
+````
+
+Keep it *small* — six to ten messages, the major forks, the async-vs-sync arrow style (`->>` solid for blocking, `-->>` dashed for fire-and-forget/return). If the diagram needs more than ten lines to be honest, drop it; the prose carries the trace. Skip diagrams entirely for linear flows — they add noise.
+
 **Domain playbooks — read one if it matches.** Those four traps are *universal*. Some kinds of code also carry their own recurring gotchas that are easy to miss unless you know to look for them — React's render/effect timing, async runtimes, message queues, query planners. If what you're tracing matches a row below, skim that playbook *before* you walk the code, so its domain-specific traps land in both your walkthrough and your "squint" section. If nothing matches, just lean on the four universal traps — most traces don't need a playbook.
 
 | If you're tracing… | Read first |
@@ -92,6 +146,7 @@ You don't need to label all four in the prose with emoji on every line — that 
 | Go concurrency — goroutines (`go`), channels, `select`, `WaitGroup`, deadlocks & leaks | `references/tracing-go-concurrency.md` |
 | Rust async — `async fn`, `.await`, `tokio::spawn`, `join!`/`select!`, "why didn't this run" | `references/tracing-rust-futures.md` |
 | Message queues & event-driven flows — producers/consumers, brokers (Kafka/SQS/RabbitMQ), acks, retries, DLQs, duplicate/out-of-order delivery | `references/tracing-message-queues.md` |
+| Tests as the target — "what does this test actually verify", "is this test load-bearing or tautological", reviewing test intent, exposing false positives | `references/tracing-tests.md` |
 
 **Adding a playbook later:** when you catch yourself re-deriving the same domain gotchas across traces, write them down once as `references/tracing-<domain>.md` (mirror the React one's shape — mental model first, then that domain's flavor of the four traps, then a right-vs-wrong phrasing example) and add a row above. Strong candidates not yet written: SQL `EXPLAIN` plans, React Native bridges, browser layout/reflow. Don't pre-write these — only add a playbook once a real trace would have benefited from it, so each one earns its place.
 
@@ -100,6 +155,7 @@ You don't need to label all four in the prose with emoji on every line — that 
 - **Documentation:** save a markdown file using the **Output format** below, named after the target (`trace-login-flow.md`, `trace-order-pipeline.md`). Put it in the user's docs folder if one's obvious, otherwise where they're working — then give a **one- or two-sentence** inline recap plus the path, not a re-explanation of the whole thing. If the trace surfaced a likely bug or a genuinely surprising step, call *that* out inline ("heads up — errors in the payment step get swallowed at `checkout.ts:88`").
 - **Explanation:** deliver the *same* structure **inline in chat** — drop the file and the metadata blockquote, keep the numbered walkthrough, the "where the duck would squint" list, and the one-paragraph recap. Don't write a file unless the user also asks to save it.
 - **Debugging:** follow `references/debugging-mode.md` — deliver the trace inline with the prime-suspect analysis and a cheap way to confirm it. Write a file too only if the user wants the diagnosis saved.
+- **Diff trace:** follow `references/diff-trace-mode.md` — deliver inline with the paired pre/post walkthrough and the behavioral-delta summary. Write a file only if the user wants it preserved alongside the PR.
 
 ## Output format
 
@@ -149,6 +205,18 @@ The spots most likely to hide a bug or surprise a future reader:
 <one short paragraph, plain language, that a person could read on its own and walk away understanding the journey>
 ```
 
+### Before you share it — the honesty pass
+
+Before delivering the trace (writing the file, posting in chat), re-read the draft once with these checks. They take a minute and catch the failure modes that make traces actively misleading.
+
+- **Every anchor resolves.** Open each `file.ts:NN` you cited and confirm the line *still says what your step claims it says*. Code moves; line numbers go stale silently. For longer traces, run `scripts/validate-anchors.py <your-trace.md> --refresh` to print the actual code at each anchor in one pass — anchors that resolve to the *wrong* line stand out immediately.
+- **Order matches execution, not file layout.** Scan the step list — does it ever follow code top-to-bottom in a file instead of in run order? If yes, re-sequence.
+- **Voice held throughout.** Pick a paragraph from the middle, re-read it as the chosen reader. Any jargon that should've been explained? Any metaphor that snuck in if you'd picked voice 3? Fix.
+- **The squint section is honest.** Either it lists *real* risks anchored to lines you read, or it explicitly says "nothing alarming — the path is linear and errors propagate." Don't pad with vague concerns ("this could be slow," "consider caching") to fill the section.
+- **Nothing past the edge of what you read.** Anywhere the trace says what a third-party lib or unread file does, confirm you read it. If you didn't, downgrade to "hands off to `<thing>`, which I haven't traced."
+
+If any of these fail, the trace isn't ready — fix before sharing. A draft with one phantom anchor is a worse outcome than no trace at all.
+
 ### Why this shape
 
 - **The one-sentence summary** lets someone decide in three seconds whether this is the trace they need.
@@ -165,7 +233,9 @@ The spots most likely to hide a bug or surprise a future reader:
 - **Over-labeling.** Don't slap 🔀⚠️⏳🤫 on every line. Reserve the emphasis for steps that actually carry risk, or the signal stops meaning anything.
 - **Drifting voice.** If they picked ELI5, "instantiates a singleton" is a failure even once. Re-read your draft as the chosen reader and fix any word they wouldn't know.
 - **Guessing past the edge of what you read.** When the trail leaves the code you have (a third-party lib, an unread file), say "from here it hands off to `<thing>`, which I haven't traced" rather than improvising its insides.
+- **Walking into every helper.** A trace that dives into `toLower(s)` for one beat ("it returns the lowercased string") is harder to read than one that doesn't dive in at all. Reach for the **"when to walk in vs summarize"** rule above when a call is a leaf or a trivial wrapper.
+- **Phantom anchors.** Citing `file.ts:42` for a step is a *receipt*. If line 42 doesn't say what your narration claims — because the code moved, because you guessed, because you copy-pasted from an older version of the file — the receipt is forged. Run `scripts/validate-anchors.py --refresh` to spot-check on longer traces.
 
 ## Worked example
 
-See `references/example-trace.md` for a full trace (a webhook request through signature verification into an agent dispatch) written top-down in the dev-savvy voice, plus a side-by-side of the *same* opening step in all three voices, and a short illustration of how the same trace reorganizes when the user picks **bottom-up**. Read it before your first trace to calibrate the quality bar.
+See `references/example-trace.md` for a full trace (a webhook request through signature verification into an agent dispatch) written top-down in the dev-savvy voice, plus a side-by-side of the *same* opening step in all three voices, a short illustration of how the same trace reorganizes when the user picks **bottom-up**, and — at the bottom — a **confidently wrong version of the same trace** that pattern-matches against "what servers usually do" instead of reading the code. Read all three before your first trace: the good one to calibrate the quality bar, the voice comparison to feel the level you've picked, and the anti-example to internalize what the honesty rule is actually protecting against.

@@ -2,6 +2,8 @@
 
 You're here because the user picked **debugging**, or their request was clearly "why does X happen / this should do Y but does Z / where's the bug." Rubber ducking finds bugs precisely because narrating what the code *actually* does, step by step, exposes the spot where reality stops matching what the author intended. Debugging mode makes that explicit: you trace **toward a known symptom** and rank where the divergence most likely is.
 
+**Related skill:** `superpowers:systematic-debugging` is the general hypothesis → cheap-confirm → ranked-suspects framework, untied to control-flow shape. Reach for *that* when you don't yet have a path to walk (intermittent failures with no stack trace, multi-system bugs, environmental issues). Reach for *this* when you do — when there's a function or request lifecycle to narrate toward the symptom. The two are complementary; nothing here contradicts that skill, this is its trace-shaped specialization.
+
 Everything in the main SKILL still holds — the honesty rule, the anchors, execution order, the four traps, the domain playbooks. This file changes three things: you **interview for the symptom first**, you **walk with a suspect lens**, and you **end with a ranked diagnosis instead of a flat recap**.
 
 ## Step A — Get the symptom before tracing anything

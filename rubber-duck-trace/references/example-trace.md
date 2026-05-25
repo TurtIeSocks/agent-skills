@@ -89,3 +89,37 @@ The full trace above is **top-down**: it starts at the front door and meets each
 
 The walkthrough is *still* in execution order — bottom-up doesn't run the program backwards. It just front-loads the definitions so the assembly reads as a clean story instead of constantly pausing to explain a helper mid-sentence. Reach for it when the helpers are the unfamiliar part; reach for top-down when the *flow* is what the reader cares about.
 
+---
+
+## A confidently wrong trace (anti-example)
+
+Same target — the GitHub webhook flow — but written by someone who skimmed the code and pattern-matched against "what servers usually do" instead of reading it. Every step *sounds* plausible. Every step is wrong in a way a reader can't catch from the prose alone. Read this side-by-side with the good trace above to feel where the honesty rule and the anchor receipts actually earn their keep.
+
+> # Trace: what happens when a GitHub webhook arrives (bad version)
+>
+> 1. **It receives the POST and validates the request** — `src/server.ts:18`
+>    Hono receives the request, parses the body, and validates the user's permissions before passing it to the handler.
+>    *(Wrong on three counts: the body is read **before** the signature check, not after; there's no "user" on this path — webhooks are authenticated by HMAC, not by user role; and "validates the request" is a generic phrase that hides where the actual check is. A reader who trusts this will look for permission code that doesn't exist.)*
+>
+> 2. **It looks up the right agent in the database** — `src/dispatch.ts:12`
+>    The router queries the agent table by event type and returns the matching agent's config.
+>    *(Wrong: `route()` is a static lookup, not a DB query. Inventing a DB call is exactly the kind of plausible-but-fictional step the honesty rule exists to prevent — the trace is now claiming a network round-trip and a possible failure mode that don't exist.)*
+>
+> 3. **It runs the agent and waits for it to finish** — `src/server.ts:44`
+>    The handler awaits the agent's completion and returns its result to GitHub.
+>    *(Wrong, and dangerously so: it's deliberately **not** awaited — that's the entire design. A trace that gets this wrong sends a debugger looking for a bug that isn't there, and hides the real risk that **is** there.)*
+>
+> 4. **It returns the result to GitHub** — `src/server.ts:46`
+>    The handler responds with the agent's output.
+>    *(Wrong: it responds `202 Accepted` immediately. The agent's output never reaches GitHub at all — it lives only in our own logs.)*
+
+**Why this is worse than no trace at all.** Each step sounds like a reasonable thing a server *might* do. None of them are anchored to code that actually does what's claimed — the line numbers are real but the narration isn't grounded in what those lines say. A reader who trusts this walks away with three load-bearing wrong beliefs: that the request is parsed before signature verification (a security model misunderstanding), that the dispatcher hits the database (a fictional dependency), and that the agent's response reaches GitHub (a fictional contract). And the *real* surprise of the system — fire-and-forget background work whose errors vanish into the void — is hidden.
+
+**A confident wrong trace is worse than no trace, because it sends the reader looking in the wrong place.** This is what the honesty rule and the anchor receipts protect against. If you can't find the code for a step, the fix isn't to invent something plausible — it's to say "from here it hands off to `<thing>`, which I haven't traced" and stop.
+
+How to catch yourself writing this:
+
+- If you can't point at the line that does what the step claims, the step is fiction. Delete or downgrade.
+- If a step *summarizes* code you didn't read ("it validates the request" with no anchor narrating the actual check), that's a tell — you're paraphrasing your *expectation* of the code, not the code.
+- Run `scripts/validate-anchors.py --refresh <trace.md>` on your draft. It prints the actual line at each anchor; mismatches between your narration and the printed line jump out fast.
+
