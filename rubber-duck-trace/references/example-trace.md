@@ -91,6 +91,39 @@ The walkthrough is *still* in execution order — bottom-up doesn't run the prog
 
 ---
 
+## The same trace, succinct density
+
+When the user signals "tl;dr / briefly / give me the gist" (or chose voice 3 in chat and the flow is short), collapse the same trace to one line per step. Same facts, same anchors, same honesty rule — just the connective prose between facts is gone. The webhook trace above, in succinct form:
+
+> # 🦆 Trace: GitHub webhook arrival
+>
+> **In one sentence:** verify it's really from GitHub, decide who handles it, kick off the agent in the background, return `202` before GitHub retries.
+>
+> > **Traced:** `POST /webhook` → `202` · **Voice:** Dev-savvy · **Direction:** Top-down · **Density:** Succinct · **Files:** `src/server.ts`, `src/dispatch.ts`, `src/agents/runner.ts`
+>
+> ## The walkthrough
+>
+> 1. **Receives POST** — `src/server.ts:18` — raw, untrusted at this point.
+> 2. **Reads body as text, not JSON** — `src/server.ts:21` — HMAC in step 3 needs exact bytes. ⏳ first await.
+> 3. **Verifies HMAC** — `src/server.ts:31` — body fingerprint vs `X-Hub-Signature-256`, timing-safe. 🔀 mismatch → 401, story ends.
+> 4. **Parses JSON** — `src/server.ts:38` — only after trust; `X-GitHub-Event` + payload `action` drive routing.
+> 5. **Picks agent** — `src/dispatch.ts:12` — static lookup. 🔀 no match → `204` (silent-success path, see squint).
+> 6. **Fires agent, no await** — `src/server.ts:44` — ⏳ detached; ⚠️ outlives the request.
+> 7. **Returns `202` immediately** — `src/server.ts:46` — GitHub stops waiting; agent runs in background.
+> 8. **Agent loop runs detached** — `src/agents/runner.ts:9` — ⚠️ anything thrown here is invisible to GitHub.
+>
+> ## Where the duck would squint 🦆
+> - **`src/server.ts:44`** — fire-and-forget with no error catch; agent crashes vanish.
+> - **`src/dispatch.ts:12`** — unmatched event = silent `204`; typos look healthy.
+> - **`src/server.ts:38`** — `JSON.parse` uncaught → 500 on malformed but correctly-signed body.
+>
+> ## So the whole point is…
+> Foreground: prove it's GitHub, route, light the fuse, say `202`. Background: the agent does the actual work — and any failure in there never reaches GitHub. If an agent "didn't run," check steps 5–6 first.
+
+Notice what survived and what didn't. Every anchor is still there. Every fork, every async handoff, every silent-success path that earned a mention in the full version is still mentioned — just in one clause instead of three. The recap shrank from a paragraph to two sentences. **Step 6 is the test case for whether succinct works:** the full version spent three sentences explaining *why* `runAgent` is unawaited and what side effect that creates; the succinct version compresses to `⏳ detached; ⚠️ outlives the request` and trusts the reader to know what that means. That trust is what voice 3 + senior reader + succinct lets you do. At voice 1 (ELI5) the same compression would be opaque — which is why density and voice interact.
+
+---
+
 ## A confidently wrong trace (anti-example)
 
 Same target — the GitHub webhook flow — but written by someone who skimmed the code and pattern-matched against "what servers usually do" instead of reading it. Every step *sounds* plausible. Every step is wrong in a way a reader can't catch from the prose alone. Read this side-by-side with the good trace above to feel where the honesty rule and the anchor receipts actually earn their keep.

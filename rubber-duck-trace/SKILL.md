@@ -73,6 +73,25 @@ Pick one and stay there. Drifting between voices mid-trace is the most common re
 
 Mode picks the deliverable, voice the wording, direction the ordering. Infer the obvious ones, ask the rest in one round, and don't re-ask anything the request already answered. The honesty rule and the anchors never change regardless.
 
+**Density — always auto-inferred, never asked.** Pick one based on the request's signal:
+
+1. **Full** *(default for documentation, default for explanations when the request isn't terse)* — each step opens with a bold title + anchor, then a 1–3 sentence paragraph. Best when the trace is committable docs, when the reader is unfamiliar with the territory, or when forks/side effects need a sentence of explanation to make sense.
+
+2. **Succinct** — one line per step, total. Pattern: `` N. **<what it does>** — `<anchor>` — <one-clause key detail>. 🔀/⚠️/⏳/🤫 <one-clause risk if load-bearing>. `` No two-line bold-title-then-paragraph; everything fits on the line. The squint section and one-paragraph recap still go below, also tightened.
+
+**Infer succinct when** the request includes words like "quickly", "briefly", "tl;dr", "in a nutshell", "give me the gist", "one-liner per step", "short version", "summary trace", "skim"; OR when the user has clearly chosen voice 3 (matched-complexity) for an in-chat ask and the flow is short enough that long prose would feel padded. **Stay on full when** the user named docs/documentation, when the trace is being saved to a file someone else will read cold, when bottom-up direction is chosen (building blocks need definition prose), or when ELI5 voice is chosen (succinct + ELI5 fight each other — the metaphors that make ELI5 work need room).
+
+If you genuinely can't tell, default to full — a too-detailed trace is annoying; a too-terse trace is unreadable.
+
+**Same step, both densities, dev-savvy voice:**
+
+> *Full:* **It verifies the request came from GitHub** — `src/server.ts:31`
+> It computes an HMAC-SHA256 — a fingerprint of the body signed with a secret only we and GitHub know — and compares it to the `X-Hub-Signature-256` header using `crypto.timingSafeEqual`. 🔀 If they don't match, it returns `401` and the story ends — no agent runs. If they match, the body is trusted from here.
+
+> *Succinct:* **Verifies HMAC** — `src/server.ts:31` — body fingerprint vs `X-Hub-Signature-256`, timing-safe. 🔀 mismatch → 401, story ends.
+
+Same content, same anchor, same honesty rule. The succinct line keeps the load-bearing facts (what's compared, that it's timing-safe, what mismatch does) and drops the connective tissue. If a step needs more than one line to stay honest, it needs full density — don't truncate at the cost of accuracy.
+
 ### Step 3 — Walk it (order depends on the direction they chose)
 
 Whichever direction, you still read the code the way the computer would — functions defined at the bottom of a file might run first; imported helpers run in the middle of the story. You never narrate code in the order it's *written*. What the direction changes is where you *begin*.
@@ -205,6 +224,37 @@ The spots most likely to hide a bug or surprise a future reader:
 <one short paragraph, plain language, that a person could read on its own and walk away understanding the journey>
 ```
 
+### Succinct variant
+
+When density is **succinct** (auto-inferred per Step 2 — see "tl;dr / briefly / skim" cues), drop the two-line bold-title-then-paragraph shape and inline each step:
+
+```markdown
+# 🦆 Trace: <plain name>
+
+**In one sentence:** <what this whole thing does>
+
+> **Traced:** `<entry>` → `<exit>` · **Voice:** <…> · **Direction:** <…> · **Density:** Succinct · **Files:** `<files>`
+
+## The walkthrough
+
+1. **<what step 1 does>** — `path/file.ts:NN` — <one-clause key detail>. 🔀/⚠️/⏳/🤫 <risk in one clause, only if load-bearing>.
+2. **<next>** — `path/file.ts:NN` — <…>.
+3. **<next>** — `path/file.ts:NN` — <…>.
+…
+N. **<final>** — `path/file.ts:NN` — <what comes out>.
+
+## Where the duck would squint 🦆
+- **`file.ts:NN`** — <one-line risk>.
+- **`file.ts:NN`** — <one-line risk>.
+
+## So the whole point is…
+<one tight paragraph, two or three sentences at most>
+```
+
+Numbers still matter (order is the whole point), anchors are still mandatory (succinctness ≠ less honesty), and the squint section still lists *real* risks anchored to read lines. What's gone is the connective prose between *facts* — the per-step paragraph collapses to its load-bearing clause, and the recap halves.
+
+If a step genuinely needs more than one line to stay honest (a multi-branch fork that can't be summarized as `🔀 if X → Y`, an async handoff with subtle ordering), promote *that step* to full density even within an otherwise-succinct trace. Mixed density is fine; phantom certainty from over-compression is not.
+
 ### Before you share it — the honesty pass
 
 Before delivering the trace (writing the file, posting in chat), re-read the draft once with these checks. They take a minute and catch the failure modes that make traces actively misleading.
@@ -235,7 +285,8 @@ If any of these fail, the trace isn't ready — fix before sharing. A draft with
 - **Guessing past the edge of what you read.** When the trail leaves the code you have (a third-party lib, an unread file), say "from here it hands off to `<thing>`, which I haven't traced" rather than improvising its insides.
 - **Walking into every helper.** A trace that dives into `toLower(s)` for one beat ("it returns the lowercased string") is harder to read than one that doesn't dive in at all. Reach for the **"when to walk in vs summarize"** rule above when a call is a leaf or a trivial wrapper.
 - **Phantom anchors.** Citing `file.ts:42` for a step is a *receipt*. If line 42 doesn't say what your narration claims — because the code moved, because you guessed, because you copy-pasted from an older version of the file — the receipt is forged. Run `scripts/validate-anchors.py --refresh` to spot-check on longer traces.
+- **Over-compressing in succinct mode.** A step that loses a fork, an `await`, or a side effect when squeezed onto one line isn't succinct — it's wrong. If you can't fit the load-bearing facts in a single clause, promote that step to full density. Mixed density in one trace is fine; phantom certainty from forced one-liners is not.
 
 ## Worked example
 
-See `references/example-trace.md` for a full trace (a webhook request through signature verification into an agent dispatch) written top-down in the dev-savvy voice, plus a side-by-side of the *same* opening step in all three voices, a short illustration of how the same trace reorganizes when the user picks **bottom-up**, and — at the bottom — a **confidently wrong version of the same trace** that pattern-matches against "what servers usually do" instead of reading the code. Read all three before your first trace: the good one to calibrate the quality bar, the voice comparison to feel the level you've picked, and the anti-example to internalize what the honesty rule is actually protecting against.
+See `references/example-trace.md` for a full trace (a webhook request through signature verification into an agent dispatch) written top-down in the dev-savvy voice, plus: a side-by-side of the *same* opening step in all three voices; a short illustration of how the same trace reorganizes when the user picks **bottom-up**; the **same trace in succinct density** (one line per step); and a **confidently wrong version** that pattern-matches against "what servers usually do" instead of reading the code. Read them all before your first trace: the good one to calibrate the quality bar, the voice comparison to feel the level you've picked, the succinct version to see how compression keeps honesty intact, and the anti-example to internalize what the honesty rule is actually protecting against.
