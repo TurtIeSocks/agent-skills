@@ -112,6 +112,7 @@ If a tool supports user-defined prompt files or slash commands, this repo can be
 | Skill | Description | Path |
 | --- | --- | --- |
 | `typescript-string-literals` | TypeScript string literal unions, template literal types, key remapping, typed route/event strings, and compile-time string parsing patterns. | `typescript-string-literals/SKILL.md` |
+| `systematic-refactor` | Pre-refactor workflow: trace existing app, gather refactor goals from user, assess keep-vs-rewrite per module, build old→new function/module map. Runs before `brainstorming` or `writing-plans` on multi-module rewrites, ports, or architecture changes. | `systematic-refactor/SKILL.md` |
 
 ## Contributing new skills
 
