@@ -111,8 +111,12 @@ If a tool supports user-defined prompt files or slash commands, this repo can be
 
 | Skill | Description | Path |
 | --- | --- | --- |
-| `typescript-string-literals` | TypeScript string literal unions, template literal types, key remapping, typed route/event strings, and compile-time string parsing patterns. | `typescript-string-literals/SKILL.md` |
+| `leaflet` | Build interactive maps with Leaflet (vanilla + React Leaflet). Markers, popups, GeoJSON, tile providers, plugins, and common pitfalls (blank tiles, SSR crashes, broken marker icons). | `leaflet/SKILL.md` |
+| `rubber-duck-trace` | Plain-language, step-by-step walkthroughs of how code runs. Three modes — documentation (committable trace.md), in-chat explanation, and debugging (find the gap between intended and actual behavior). | `rubber-duck-trace/SKILL.md` |
 | `systematic-refactor` | Pre-refactor workflow: trace existing app, gather refactor goals from user, assess keep-vs-rewrite per module, build old→new function/module map. Runs before `brainstorming` or `writing-plans` on multi-module rewrites, ports, or architecture changes. | `systematic-refactor/SKILL.md` |
+| `tanstack-form` | Build forms with TanStack Form + shadcn/ui + Zod. Render-prop field pattern, Zod schema validation, all shadcn field types, plus array, async, and dependent fields. | `tanstack-form/SKILL.md` |
+| `turfjs` | Routing guide to the Turf.js v7 geospatial API. Pick the right function for distance, area, buffer, point-in-polygon, intersection, clustering, and GeoJSON manipulation. Pairs with map libraries (Leaflet, Mapbox GL, etc.) for draw-then-compute flows. | `turfjs/SKILL.md` |
+| `typescript-string-literals` | TypeScript string literal unions, template literal types, key remapping, typed route/event strings, and compile-time string parsing patterns. | `typescript-string-literals/SKILL.md` |
 
 ## Contributing new skills
 
