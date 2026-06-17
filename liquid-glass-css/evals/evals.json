@@ -1,0 +1,125 @@
+{
+  "skill_name": "liquid-glass-css",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Does this skill explain how to do real refraction / lensing glass (not just blur), and how it degrades when the browser ignores the filter?",
+      "expected_output": "Points at the L3 fidelity level: a `.glass--l3` rule that adds `url(#glass-refract)` to the backdrop-filter, an inline SVG filter with feTurbulence + feDisplacementMap, and a loud caveat that backdrop-filter url() is Chromium-leaning while Safari/Firefox ignore the url() and gracefully degrade to L2 blur with no breakage.",
+      "files": ["liquid-glass-css/references/levels.md", "liquid-glass-css/assets/glass.css"],
+      "assertions": [
+        {"text": "Defines the L3 refraction level class", "check": "grep 'glass--l3'"},
+        {"text": "References the displacement filter id from the contract", "check": "grep 'glass-refract'"},
+        {"text": "Uses feDisplacementMap for the lensing effect", "check": "grep 'feDisplacementMap'"},
+        {"text": "Uses feTurbulence to generate the noise map", "check": "grep 'feTurbulence'"},
+        {"text": "Documents the Safari/Firefox graceful-degradation caveat", "check": "grep -i 'safari\\|firefox\\|chromium\\|degrade'"}
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "How do I use this glass material with Tailwind v4 instead of writing the raw CSS by hand?",
+      "expected_output": "Shows the Tailwind v4 CSS-first approach: an `@theme` block defining `--blur-glass`, `--color-glass-tint`, `--radius-glass`, a custom `@utility glass` that pairs `-webkit-backdrop-filter` with `backdrop-filter`, and a vanilla-class to utility-class mapping table (backdrop-blur-md / bg-white/10 / border / rounded / shadow), plus the L3 url() arbitrary-value note.",
+      "files": ["liquid-glass-css/references/tailwind-v4.md"],
+      "assertions": [
+        {"text": "Uses the Tailwind v4 @theme block", "check": "grep '@theme'"},
+        {"text": "Defines a custom @utility named glass", "check": "grep '@utility glass'"},
+        {"text": "Declares the --blur-glass theme token", "check": "grep 'blur-glass'"},
+        {"text": "Declares the --color-glass-tint theme token", "check": "grep 'color-glass-tint'"},
+        {"text": "Declares the --radius-glass theme token", "check": "grep 'radius-glass'"},
+        {"text": "Pairs -webkit-backdrop-filter with backdrop-filter", "check": "grep -- '-webkit-backdrop-filter'"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I'm in a React + TypeScript app. Give me the React way to drop in a glass card and a glass button with the pointer-tracking specular highlight.",
+      "expected_output": "Points at assets/Glass.tsx and references/react.md: typed `<GlassCard>` and `<GlassButton>` wrappers that emit the contract classes (zero glass logic), a `useGlassPointer` hook that sets `--mx`/`--my` on pointermove guarded by prefers-reduced-motion, a `<GlassFilter id=\"glass-refract\" />` mounting the SVG defs once, props level/prominent/theme/interactive/as/className, and a DRY note that the components wrap classes only.",
+      "files": ["liquid-glass-css/assets/Glass.tsx", "liquid-glass-css/references/react.md"],
+      "assertions": [
+        {"text": "Exports a typed GlassCard component", "check": "grep 'GlassCard'"},
+        {"text": "Exports a GlassButton component", "check": "grep 'GlassButton'"},
+        {"text": "Provides the useGlassPointer ref hook", "check": "grep 'useGlassPointer'"},
+        {"text": "Mounts the SVG defs via GlassFilter", "check": "grep 'GlassFilter'"},
+        {"text": "Sets the pointer custom properties --mx/--my", "check": "grep -- '--mx\\|--my'"},
+        {"text": "Guards pointer tracking behind prefers-reduced-motion", "check": "grep 'prefers-reduced-motion'"},
+        {"text": "Components emit contract classes only", "check": "grep 'glass--interactive\\|glass--l'"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I'm putting glass panels on a LIGHT background and the edges of the panels disappear. What's the gotcha and how do I fix it?",
+      "expected_output": "Identifies the #1 light-glass gotcha: a translucent white rim is invisible on a light backdrop, so the `[data-glass-theme=\"light\"]` preset must DARKEN the border (use a dark rgb rim instead of white), denser white tint, softer shadow, less saturate. Also ties into contrast-on-glass / WCAG guidance for text legibility.",
+      "files": ["liquid-glass-css/assets/glass.css", "liquid-glass-css/references/fallbacks-a11y.md"],
+      "assertions": [
+        {"text": "Provides a light theme preset via the data attribute", "check": "grep 'data-glass-theme=\"light\"'"},
+        {"text": "Overrides the rim/border token in the light preset", "check": "grep 'glass-border'"},
+        {"text": "Calls out the low-contrast border gotcha explicitly", "check": "grep -i 'contrast\\|gotcha\\|darker rim\\|darken'"}
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "How does the skill keep glass readable in browsers that don't support backdrop-filter? Show me the fallback strategy.",
+      "expected_output": "Describes the fallback-first pattern: the base `.glass` rule paints a legible solid-ish translucent fill (rgb tint at ~.6 alpha) with no backdrop-filter, then an `@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))` block upgrades to the translucent fill + paired backdrop-filter / -webkit-backdrop-filter. So no-support browsers get a readable panel, not unreadable text on full transparency. Also mentions prefers-reduced-transparency / prefers-contrast solid fallbacks.",
+      "files": ["liquid-glass-css/assets/glass.css", "liquid-glass-css/references/fallbacks-a11y.md"],
+      "assertions": [
+        {"text": "Uses @supports to feature-detect backdrop-filter", "check": "grep '@supports'"},
+        {"text": "Feature-detects both prefixed and unprefixed backdrop-filter", "check": "grep -- '-webkit-backdrop-filter: blur'"},
+        {"text": "Honors prefers-reduced-transparency for a solid fallback", "check": "grep 'prefers-reduced-transparency'"},
+        {"text": "Honors prefers-contrast for a solid fallback", "check": "grep 'prefers-contrast'"},
+        {"text": "Base rule is legible without backdrop-filter support", "check": "grep 'var(--glass-tint)'"}
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "In plain CSS, build a frosted-glass stat card for a dark dashboard — translucent, with the blurred background showing through. Give me the CSS.",
+      "expected_output": "A layered glass card (NOT just blur): a `.glass` base with fallback-first solid fill, `backdrop-filter: blur() saturate()` ALWAYS paired with `-webkit-backdrop-filter`, a translucent tint fill, a hairline rim border, an outer box-shadow for elevation, `position: relative; isolation: isolate;` so pseudo-element sheen anchors, and a `.glass-card` geometry layer. Should reach for L2 specular (inset highlight + inner depth + ::before sheen) and reference the token custom properties rather than hardcoding. Wrapped in an @supports upgrade for graceful fallback.",
+      "files": ["liquid-glass-css/assets/glass.css", "liquid-glass-css/references/components.md", "liquid-glass-css/SKILL.md"],
+      "assertions": [
+        {"text": "Defines the base .glass material class", "check": "grep '\\.glass'"},
+        {"text": "Provides the .glass-card geometry layer", "check": "grep 'glass-card'"},
+        {"text": "Uses backdrop-filter with blur and saturate", "check": "grep 'backdrop-filter: blur'"},
+        {"text": "Always pairs -webkit-backdrop-filter", "check": "grep -- '-webkit-backdrop-filter'"},
+        {"text": "Anchors pseudo sheen with position/isolation on base", "check": "grep 'isolation: isolate'"},
+        {"text": "Drives the look from custom-property tokens", "check": "grep -- '--glass-tint\\|--glass-fill'"},
+        {"text": "Layers a specular highlight beyond plain blur", "check": "grep 'glass-highlight\\|glass--l2\\|inset 0 1px 0'"}
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "My `.card { backdrop-filter: blur(10px) }` shows nothing / looks wrong. Why, and how do I fix it?",
+      "expected_output": "Diagnoses the common backdrop-filter failures and fixes: (1) missing `-webkit-backdrop-filter` for Safari/WebKit, (2) the element needs a translucent (not opaque, not zero-alpha) background for the blur to read, (3) no contrasting content actually sitting BEHIND the element, (4) a non-isolated stacking context, (5) the element/ancestor opacity or filter trap. Should push toward the full layered material + the @supports fallback-first pattern, not a single blur declaration.",
+      "files": ["liquid-glass-css/SKILL.md", "liquid-glass-css/references/levels.md", "liquid-glass-css/references/fallbacks-a11y.md"],
+      "assertions": [
+        {"text": "Flags the missing -webkit-backdrop-filter pairing", "check": "grep -- '-webkit-backdrop-filter'"},
+        {"text": "Explains the translucent-background requirement", "check": "grep -i 'translucent\\|background'"},
+        {"text": "Mentions content must sit behind the glass to show through", "check": "grep -i 'behind'"},
+        {"text": "Provides the @supports fallback-first remedy", "check": "grep '@supports'"}
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Build a React glass card component with an Apple-style liquid look (the iOS 26 Liquid Glass vibe) on the web.",
+      "expected_output": "Uses the React layer from this skill: a `<GlassCard>` (and optionally `<GlassPanel>`/`<GlassButton>`) from assets/Glass.tsx with `level` (1|2|3) and `interactive` props to reach the L2/L3 specular + pointer-tracking liquid look, mounts `<GlassFilter id=\"glass-refract\" />` once for L3 refraction, relies on glass.css as the single source of truth (components emit classes only), and respects prefers-reduced-motion. Should NOT reinvent the glass CSS inline in the component, and should note the iOS↔web pairing with liquid-glass-design.",
+      "files": ["liquid-glass-css/assets/Glass.tsx", "liquid-glass-css/references/react.md", "liquid-glass-css/SKILL.md"],
+      "assertions": [
+        {"text": "Provides a GlassCard React wrapper", "check": "grep 'GlassCard'"},
+        {"text": "Supports the level prop for fidelity 1|2|3", "check": "grep 'level'"},
+        {"text": "Supports an interactive prop for pointer specular", "check": "grep 'interactive'"},
+        {"text": "Mounts the SVG refraction filter via GlassFilter", "check": "grep 'GlassFilter'"},
+        {"text": "Components emit contract classes, no inline glass CSS", "check": "grep 'glass-card\\|glass--l'"},
+        {"text": "Cross-links the iOS liquid-glass-design counterpart", "check": "grep 'liquid-glass-design'"}
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "How do I make two glass blobs merge into one another like the iOS Liquid Glass mercury effect on the web?",
+      "expected_output": "Covers Tier A and Tier B morphing: Tier A matched-geometry morph (framer-motion layoutId shown by example as the glassEffectID analog, or a vanilla FLIP helper) for a glass element flowing between states; Tier B gooey merge via an SVG `#glass-goo` filter (feGaussianBlur -> feColorMatrix alpha-crank) on a `.glass-goo` container so overlapping shapes snap into one silhouette, with loud caveats about composing the gooey filter with backdrop-filter and perf. Notes Tier C (continuous liquid refraction through the merge) needs WebGL and is out of scope.",
+      "files": ["liquid-glass-css/references/morphing.md", "liquid-glass-css/assets/glass.css"],
+      "assertions": [
+        {"text": "Provides the gooey-merge container class", "check": "grep 'glass-goo'"},
+        {"text": "Uses feGaussianBlur in the gooey filter", "check": "grep 'feGaussianBlur'"},
+        {"text": "Uses feColorMatrix to crank the merged alpha", "check": "grep 'feColorMatrix'"},
+        {"text": "Documents the matched-geometry morph (layoutId or FLIP)", "check": "grep -i 'layoutId\\|FLIP'"},
+        {"text": "Flags Tier C continuous refraction as WebGL/out-of-scope", "check": "grep -i 'webgl'"}
+      ]
+    }
+  ]
+}

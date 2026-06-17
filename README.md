@@ -112,6 +112,7 @@ If a tool supports user-defined prompt files or slash commands, this repo can be
 | Skill | Description | Path |
 | --- | --- | --- |
 | `leaflet` | Build interactive maps with Leaflet (vanilla + React Leaflet). Markers, popups, GeoJSON, tile providers, plugins, and common pitfalls (blank tiles, SSR crashes, broken marker icons). | `leaflet/SKILL.md` |
+| `liquid-glass-css` | Web/CSS counterpart to iOS liquid-glass-design: layered "liquid glass"/glassmorphism for vanilla CSS, Tailwind v4, and React. 6-layer material model, 3 fidelity levels (incl. SVG refraction), presets, 5 components, and Tier A/B morphing. | `liquid-glass-css/SKILL.md` |
 | `rubber-duck-trace` | Plain-language, step-by-step walkthroughs of how code runs. Three modes — documentation (committable trace.md), in-chat explanation, and debugging (find the gap between intended and actual behavior). | `rubber-duck-trace/SKILL.md` |
 | `systematic-refactor` | Pre-refactor workflow: trace existing app, gather refactor goals from user, assess keep-vs-rewrite per module, build old→new function/module map. Runs before `brainstorming` or `writing-plans` on multi-module rewrites, ports, or architecture changes. | `systematic-refactor/SKILL.md` |
 | `tanstack-form` | Build forms with TanStack Form + shadcn/ui + Zod. Render-prop field pattern, Zod schema validation, all shadcn field types, plus array, async, and dependent fields. | `tanstack-form/SKILL.md` |

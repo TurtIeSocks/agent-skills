@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en" data-glass-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>liquid-glass-css — live demo</title>
+
+  <!--
+    Self-contained demo for the liquid-glass-css skill.
+    The glass MATERIAL comes 100% from the sibling glass.css (single source of
+    truth) — this file only arranges demo content, paints a SEDELA-flavored
+    ambient background, and wires the two interactive morph toggles + the theme
+    switcher. Nothing here re-implements the glass look.
+
+    The inline <svg> at the top of <body> mounts the filter defs that glass.css
+    references by id: #glass-refract (L3 lensing) and #glass-goo (Tier B merge).
+    They must exist once per document or those features silently degrade.
+
+    Opens standalone: just double-click it. (glass.css sits beside it.)
+  -->
+  <link rel="stylesheet" href="./glass.css" />
+
+  <style>
+    /* ---------------------------------------------------------------------
+       DEMO CHROME ONLY — page scaffold, the SEDELA ambient background, and
+       layout. None of this is part of the glass system; it is the stage the
+       glass panels stand on. Real apps bring their own background + reset.
+       ------------------------------------------------------------------- */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body { margin: 0; }
+
+    body {
+      min-height: 100vh;
+      padding: 28px clamp(16px, 4vw, 56px) 80px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: rgb(238 240 245);
+      /* Warm dark base — the SEDELA charcoal. Colored blobs layer on top. */
+      background-color: #14110e;
+      overflow-x: hidden;
+    }
+
+    /* Ambient warm gradient + glowing colored blobs behind everything.
+       backdrop-filter needs something interesting BEHIND the glass to refract;
+       a flat color makes glass look dead. This is the "interesting backdrop". */
+    .ambient {
+      position: fixed;
+      inset: 0;
+      z-index: -10;
+      pointer-events: none;
+      background:
+        radial-gradient(42rem 42rem at 12% 8%, rgb(255 122 26 / 0.30), transparent 60%),
+        radial-gradient(38rem 38rem at 88% 14%, rgb(214 64 132 / 0.26), transparent 62%),
+        radial-gradient(46rem 46rem at 78% 96%, rgb(94 84 222 / 0.30), transparent 60%),
+        radial-gradient(40rem 40rem at 8% 88%, rgb(34 158 132 / 0.24), transparent 60%),
+        radial-gradient(120% 120% at 50% 0%, #241c14, #100d0a 70%);
+      animation: ambient-drift 26s ease-in-out infinite alternate;
+    }
+    @keyframes ambient-drift {
+      from { transform: translate3d(0, 0, 0) scale(1); }
+      to   { transform: translate3d(0, -2.5%, 0) scale(1.06); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .ambient { animation: none; }
+    }
+
+    /* On the LIGHT theme, swap the body base + text so glass-on-light is honest. */
+    [data-glass-theme="light"] body {
+      background-color: #e9e4dc;
+      color: rgb(28 26 24);
+    }
+    [data-glass-theme="light"] .ambient {
+      background:
+        radial-gradient(42rem 42rem at 12% 8%, rgb(255 168 90 / 0.55), transparent 60%),
+        radial-gradient(38rem 38rem at 88% 14%, rgb(245 150 190 / 0.5), transparent 62%),
+        radial-gradient(46rem 46rem at 78% 96%, rgb(150 160 245 / 0.5), transparent 60%),
+        radial-gradient(40rem 40rem at 8% 88%, rgb(130 220 200 / 0.5), transparent 60%),
+        radial-gradient(120% 120% at 50% 0%, #f3eee6, #e2dcd2 70%);
+    }
+
+    /* Layout helpers (demo only). */
+    .wrap { max-width: 1100px; margin: 0 auto; }
+
+    .page-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 14px 2px 26px;
+    }
+    .page-head h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.01em; }
+    .page-head p  { margin: 4px 0 0; opacity: 0.72; font-size: 0.9rem; }
+
+    section { margin: 40px 0; }
+    section > h2 {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      opacity: 0.6;
+      margin: 0 0 16px 2px;
+      font-weight: 600;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 22px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .stack { display: flex; flex-direction: column; gap: 10px; }
+
+    /* Demo card internals (the glass MATERIAL is .glass-card from glass.css). */
+    .card-label { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.6; }
+    .card-value { font-size: 1.9rem; font-weight: 650; margin: 6px 0 2px; letter-spacing: -0.01em; }
+    .card-foot  { font-size: 0.82rem; opacity: 0.7; display: flex; align-items: center; gap: 8px; }
+
+    .lvl-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      opacity: 0.85;
+    }
+
+    .nav-brand { font-weight: 700; letter-spacing: 0.02em; margin-right: auto; display: flex; align-items: center; gap: 9px; }
+    .nav-dot { width: 11px; height: 11px; border-radius: 50%; background: rgb(255 122 26); box-shadow: 0 0 12px rgb(255 122 26 / 0.8); }
+
+    /* Buttons / pills / badges in glass.css inherit text color; nothing needed here. */
+    button.glass-button { color: inherit; }
+
+    .muted { opacity: 0.7; font-size: 0.85rem; }
+
+    /* Morph stages — plain (non-glass) tracks the glass pill FLIPs between. */
+    .morph-track {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgb(255 255 255 / 0.04);
+      border: 1px dashed rgb(255 255 255 / 0.14);
+      min-height: 86px;
+    }
+    [data-glass-theme="light"] .morph-track {
+      background: rgb(0 0 0 / 0.04);
+      border-color: rgb(0 0 0 / 0.16);
+    }
+    .morph-slot { display: flex; align-items: center; justify-content: center; min-width: 0; }
+    /* The morphing pill animates via the Web Animations API (FLIP), so we do not
+       declare a CSS transition on transform here — JS owns the tween. */
+    #morphPill { white-space: nowrap; }
+    #morphPill.is-big { padding: 0.7em 1.5em; font-size: 1.05rem; }
+
+    /* Gooey stage — two .glass-goo blobs share a parent that carries #glass-goo.
+       They sit apart by default and translate together on toggle; the gooey
+       filter fuses their silhouettes as they overlap (mercury merge). */
+    .goo-stage {
+      position: relative;
+      height: 150px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background: rgb(255 255 255 / 0.04);
+      border: 1px dashed rgb(255 255 255 / 0.14);
+      overflow: hidden;
+    }
+    [data-glass-theme="light"] .goo-stage {
+      background: rgb(0 0 0 / 0.04);
+      border-color: rgb(0 0 0 / 0.16);
+    }
+    /* The filtered group. filter:url(#glass-goo) comes from .glass-goo in glass.css. */
+    .goo-field {
+      position: relative;
+      width: 320px;
+      height: 110px;
+    }
+    .goo-blob {
+      position: absolute;
+      top: 50%;
+      width: 84px;
+      height: 84px;
+      margin-top: -42px;
+      border-radius: 999px;
+      /* A solid warm fill so the gooey alpha-crank has crisp shapes to merge.
+         (Glass tint reads through on the panels above; here we want opaque mass.) */
+      background: radial-gradient(circle at 35% 30%, rgb(255 176 120), rgb(255 122 26));
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
+      transition: transform 0.55s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    .goo-blob.left  { left: 36px;  transform: translateX(0); }
+    .goo-blob.right { right: 36px; transform: translateX(0); }
+    /* merged state: slide both toward the center so silhouettes overlap + fuse */
+    .goo-field.is-merged .goo-blob.left  { transform: translateX(58px); }
+    .goo-field.is-merged .goo-blob.right { transform: translateX(-58px); }
+    @media (prefers-reduced-motion: reduce) {
+      .goo-blob { transition: none; }
+    }
+
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .legend { font-size: 0.8rem; opacity: 0.66; max-width: 60ch; line-height: 1.5; }
+
+    /* Modal open/close is driven by a body class the buttons toggle. */
+    body:not(.modal-open) #scrim,
+    body:not(.modal-open) #modal { display: none; }
+  </style>
+</head>
+
+<body>
+  <!-- =====================================================================
+       SVG FILTER DEFS — mounted ONCE. glass.css references these by id.
+       Hidden (0×0, aria-hidden) but must remain in the DOM for the filters
+       to resolve. #glass-refract = L3 backdrop displacement (lensing).
+       #glass-goo = Tier B gooey merge (blur -> alpha-crank color matrix).
+       ===================================================================== -->
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+    <defs>
+      <!-- L3 lensing: fractal noise displaces the backdrop the panel sits over. -->
+      <filter id="glass-refract" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.009 0.013"
+                      numOctaves="2" seed="9" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="32"
+                           xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+
+      <!-- Tier B gooey merge: heavy blur, then crank alpha to a hard step so
+           overlapping blurred shapes snap into a single fused silhouette. -->
+      <filter id="glass-goo">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur"/>
+        <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo"/>
+        <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <div class="ambient"></div>
+
+  <div class="wrap">
+
+    <!-- ================================================================= -->
+    <!-- NAV — sticky glass toolbar (.glass-nav). Theme switcher lives here. -->
+    <!-- ================================================================= -->
+    <nav class="glass glass-nav">
+      <span class="nav-brand"><span class="nav-dot"></span> SEDELA</span>
+      <button class="glass glass-button glass-pill" type="button" data-active>Overview</button>
+      <button class="glass glass-button glass-pill" type="button">Payments</button>
+      <button class="glass glass-button glass-pill" type="button">Reports</button>
+      <button id="themeBtn" class="glass glass-button glass-button--prominent" type="button">
+        Theme: <span id="themeName">dark</span>
+      </button>
+    </nav>
+
+    <div class="page-head">
+      <div>
+        <h1>liquid-glass-css</h1>
+        <p>Layered frosted glass — every panel below is the same material at a different fidelity level.</p>
+      </div>
+      <span class="glass glass-badge">live demo</span>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- LEVELS — L1 / L2 / L3 side by side. Same .glass-card, stacked levels. -->
+    <!-- ================================================================= -->
+    <section>
+      <h2>Fidelity levels — L1 · L2 · L3</h2>
+      <div class="grid-3">
+        <!-- L1: base material only (blur + tint + rim + elevation). -->
+        <article class="glass glass-card">
+          <div class="lvl-tag">L1 — baseline</div>
+          <div class="card-label">Total Pending</div>
+          <div class="card-value">$12.4K</div>
+          <div class="card-foot"><span class="glass glass-badge">+4.2%</span> production-safe, universal</div>
+        </article>
+
+        <!-- L2: adds specular highlight + inner depth + diagonal sheen. -->
+        <article class="glass glass--l2 glass-card">
+          <div class="lvl-tag">L2 — specular</div>
+          <div class="card-label">Net Volume</div>
+          <div class="card-value">$48.9K</div>
+          <div class="card-foot"><span class="glass glass-badge">+12%</span> pure CSS, cross-browser</div>
+        </article>
+
+        <!-- L3: real backdrop refraction via #glass-refract + travelling sheen.
+             Levels are CUMULATIVE: .glass--l3 builds on top of .glass--l2, so
+             both classes ride alongside the base .glass. No glass--interactive
+             here — the documented level card stays a pure level showcase; the
+             pointer-specular demo lives in its own dedicated card below. -->
+        <article class="glass glass--l2 glass--l3 glass-card">
+          <div class="lvl-tag">L3 — refraction</div>
+          <div class="card-label">Active Users</div>
+          <div class="card-value">9,210</div>
+          <div class="card-foot"><span class="glass glass-badge">live</span> backdrop refraction + travelling sheen</div>
+        </article>
+
+        <!-- INTERACTIVE: dedicated pointer-specular showcase. Composes L2 with
+             glass--interactive — the ::before now LAYERS the radial pointer
+             highlight over the L2 diagonal sheen, so both coexist. -->
+        <article class="glass glass--l2 glass--interactive glass-card">
+          <div class="lvl-tag">Interactive — pointer specular</div>
+          <div class="card-label">Conversion</div>
+          <div class="card-value">3.8%</div>
+          <div class="card-foot"><span class="glass glass-badge">hover</span> hover me — specular tracks the cursor</div>
+        </article>
+      </div>
+      <p class="legend" style="margin-top:14px">
+        L3 backdrop refraction is Chromium-leaning; Safari/Firefox ignore the
+        <code>url()</code> and gracefully fall back to the L2-grade blur — no breakage.
+      </p>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- CONTROLS — buttons, prominent button, pills, badges. -->
+    <!-- ================================================================= -->
+    <section>
+      <h2>Buttons · pills · badges</h2>
+      <div class="row">
+        <button class="glass glass-button" type="button">Secondary</button>
+        <button class="glass glass-button glass-button--prominent" type="button">Primary action</button>
+        <button class="glass glass-button glass--interactive" type="button">Interactive</button>
+        <span class="glass glass-pill">All time</span>
+        <span class="glass glass-pill" data-active>This month</span>
+        <span class="glass glass-pill">Today</span>
+        <span class="glass glass-badge">NEW</span>
+        <span class="glass glass-badge">$12.4K</span>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- MODAL — trigger opens a .glass-modal over a self-blurring .glass-scrim. -->
+    <!-- ================================================================= -->
+    <section>
+      <h2>Modal + scrim</h2>
+      <button id="openModal" class="glass glass-button glass-button--prominent" type="button">
+        Open glass modal
+      </button>
+      <p class="legend" style="margin-top:12px">
+        The scrim carries its own <code>backdrop-filter</code>, so the whole page
+        behind the modal frosts and dims at once.
+      </p>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- MORPHING — Tier A (FLIP matched-geometry) + Tier B (gooey merge). -->
+    <!-- ================================================================= -->
+    <section>
+      <h2>Morphing — Tier A (FLIP) · Tier B (gooey merge)</h2>
+      <div class="grid-3" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+
+        <!-- TIER A: one glass pill flows between two slots, growing as it lands
+             in the second. Pure FLIP — measure, invert, play — no framework. -->
+        <div class="stack">
+          <div class="muted">Tier A — matched geometry (FLIP)</div>
+          <div class="morph-track" id="morphTrack">
+            <div class="morph-slot" id="slotA">
+              <button id="morphPill" class="glass glass--l2 glass-button glass-pill" type="button">
+                Drag-free morph
+              </button>
+            </div>
+            <div class="morph-slot" id="slotB" aria-hidden="true"></div>
+          </div>
+          <button id="morphBtn" class="glass glass-button" type="button">Toggle position + size</button>
+        </div>
+
+        <!-- TIER B: two gooey blobs in a .glass-goo field fuse on toggle. -->
+        <div class="stack">
+          <div class="muted">Tier B — gooey merge (#glass-goo)</div>
+          <div class="goo-stage">
+            <div class="glass-goo goo-field" id="gooField">
+              <span class="goo-blob left"></span>
+              <span class="goo-blob right"></span>
+            </div>
+          </div>
+          <button id="gooBtn" class="glass glass-button" type="button">Merge / split</button>
+        </div>
+
+      </div>
+      <p class="legend" style="margin-top:14px">
+        Morphing animates the <em>shape</em> the glass rides on; the material is
+        unchanged. Tier B composes an SVG gooey filter — finicky and GPU-costly,
+        so it ships as an advanced, caveated effect.
+      </p>
+    </section>
+
+  </div>
+
+  <!-- Modal markup (hidden until body.modal-open). Lives outside .wrap so the
+       fixed scrim covers the full viewport. -->
+  <div id="scrim" class="glass-scrim"></div>
+  <div id="modal" class="glass glass--l2 glass-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h3 id="modalTitle" style="margin:0 0 10px">Confirm payout</h3>
+    <p style="margin:0 0 18px;opacity:.8;line-height:1.5">
+      Releasing <strong>$12,400</strong> to 3 connected accounts. The blurred
+      backdrop is the scrim doing its own <code>backdrop-filter</code>.
+    </p>
+    <div class="row" style="justify-content:flex-end">
+      <button id="cancelModal" class="glass glass-button" type="button">Cancel</button>
+      <button id="confirmModal" class="glass glass-button glass-button--prominent" type="button">Confirm</button>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    /* -------------------------------------------------------------------
+       THEME SWITCHER — cycles data-glass-theme on <html>. glass.css reads
+       the attribute and retunes every token; this is the only glue needed.
+       ------------------------------------------------------------------- */
+    const THEMES = ['dark', 'light', 'tinted'];
+    const root = document.documentElement;
+    const themeName = document.getElementById('themeName');
+
+    document.getElementById('themeBtn').addEventListener('click', () => {
+      const current = root.getAttribute('data-glass-theme') || 'dark';
+      const next = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length];
+      root.setAttribute('data-glass-theme', next);
+      themeName.textContent = next;
+    });
+
+    /* -------------------------------------------------------------------
+       MODAL — toggle a body class; CSS shows/hides scrim + modal. Scrim
+       click, Cancel, Confirm, and Escape all close it.
+
+       Minimal focus management: on open we remember the opener, then move
+       focus into the modal; on close we restore focus to whatever opened it.
+       NOTE: production needs a full focus trap (keep Tab/Shift+Tab cycling
+       inside the dialog); this demo only handles initial + restored focus.
+       ------------------------------------------------------------------- */
+    const body = document.body;
+    const modalEl = document.getElementById('modal');
+    let modalOpener = null;
+
+    const openModal = () => {
+      modalOpener = document.activeElement;          // remember who opened it
+      body.classList.add('modal-open');
+      // move focus into the modal (Cancel is the safe default target)
+      document.getElementById('cancelModal').focus();
+    };
+    const closeModal = () => {
+      if (!body.classList.contains('modal-open')) return;
+      body.classList.remove('modal-open');
+      // restore focus to the opener, if it is still focusable
+      if (modalOpener && typeof modalOpener.focus === 'function') modalOpener.focus();
+      modalOpener = null;
+    };
+
+    document.getElementById('openModal').addEventListener('click', openModal);
+    document.getElementById('scrim').addEventListener('click', closeModal);
+    document.getElementById('cancelModal').addEventListener('click', closeModal);
+    document.getElementById('confirmModal').addEventListener('click', closeModal);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    /* -------------------------------------------------------------------
+       POINTER SPECULAR — the vanilla twin of useGlassPointer(). On every
+       .glass--interactive element, write --mx/--my (in %) on pointermove so
+       the radial highlight in glass.css follows the cursor. Skipped entirely
+       when the user prefers reduced motion.
+       ------------------------------------------------------------------- */
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduceMotion) {
+      document.querySelectorAll('.glass--interactive').forEach((el) => {
+        el.addEventListener('pointermove', (e) => {
+          const r = el.getBoundingClientRect();
+          el.style.setProperty('--mx', ((e.clientX - r.left) / r.width)  * 100 + '%');
+          el.style.setProperty('--my', ((e.clientY - r.top)  / r.height) * 100 + '%');
+        });
+      });
+    }
+
+    /* -------------------------------------------------------------------
+       TIER A — FLIP morph. Move the glass pill DOM node between two slots,
+       then animate from its previous box to its new one. First-Last-Invert-
+       Play: read first rect, move it (last rect), invert with a transform,
+       then play back to identity. No transition declared in CSS — the Web
+       Animations API owns the tween, so it survives the size change too.
+       ------------------------------------------------------------------- */
+    const morphPill = document.getElementById('morphPill');
+    const slotA = document.getElementById('slotA');
+    const slotB = document.getElementById('slotB');
+    let pillInB = false;
+
+    document.getElementById('morphBtn').addEventListener('click', () => {
+      // FIRST: where is the pill now?
+      const first = morphPill.getBoundingClientRect();
+
+      // LAST: relocate + resize it, then measure the new box.
+      pillInB = !pillInB;
+      (pillInB ? slotB : slotA).appendChild(morphPill);
+      morphPill.classList.toggle('is-big', pillInB);
+      morphPill.textContent = pillInB ? 'Morphed + grown' : 'Drag-free morph';
+      const last = morphPill.getBoundingClientRect();
+
+      if (reduceMotion) return; // honor stillness — instant move, no tween.
+
+      // INVERT: offset + scale so it visually starts where it was.
+      const dx = first.left - last.left;
+      const dy = first.top  - last.top;
+      const sx = first.width  / last.width;
+      const sy = first.height / last.height;
+
+      // PLAY: animate the inverse back to the natural (identity) position.
+      morphPill.animate(
+        [
+          { transformOrigin: 'top left',
+            transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
+          { transformOrigin: 'top left', transform: 'translate(0, 0) scale(1, 1)' },
+        ],
+        { duration: 480, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' }
+      );
+    });
+
+    /* -------------------------------------------------------------------
+       TIER B — gooey merge. Just toggle a class on the filtered field; the
+       blobs slide together via CSS transform and #glass-goo fuses them.
+       ------------------------------------------------------------------- */
+    const gooField = document.getElementById('gooField');
+    document.getElementById('gooBtn').addEventListener('click', () => {
+      gooField.classList.toggle('is-merged');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,546 @@
+/* =============================================================================
+   liquid-glass-css — glass.css
+   The canonical drop-in stylesheet and SINGLE SOURCE OF TRUTH for the look.
+   Everything else (Tailwind utilities, React wrappers, the demo) mirrors or
+   emits the classes defined here — it never re-implements the material.
+
+   MENTAL MODEL: glass is NOT one property. It is a stack of ~6 optical layers:
+     1 backdrop (blur + saturate, +refraction at L3)
+     2 body tint (flat fill at L1, top-lit gradient at L2/L3)
+     3 rim / edge (hairline border -> light-catching gradient rim)
+     4 specular highlight (inner top light + ::before sheen)
+     5 inner depth (inner bottom shadow -> material thickness)
+     6 elevation (outer box-shadow -> floats off the page)
+
+   FIDELITY LEVELS stack as classes:  .glass  ->  .glass.glass--l2  ->  .glass.glass--l3
+   PRESETS retune the tokens only:    [data-glass-theme="dark"|"light"|"tinted"]
+   COMPONENTS reuse the tokens with their own geometry.
+
+   CONVENTIONS:
+     - Colors use space-separated rgb channels + slash alpha: rgb(R G B / A).
+       The channel-trick (--glass-tint holds "R G B") lets one tint value drive
+       many alphas via rgb(var(--glass-tint) / <alpha>).
+     - Every backdrop-filter is paired with -webkit-backdrop-filter (Safari).
+     - Fallback-first: a legible solid-ish panel renders even with zero
+       backdrop-filter support; @supports upgrades to translucency.
+
+   REQUIRES (inline once per document — see assets/demo.html or <GlassFilter/>):
+     <svg> defs for filter #glass-refract (L3 lensing) and #glass-goo (Tier B).
+   ============================================================================= */
+
+
+/* -----------------------------------------------------------------------------
+   1) TOKEN BLOCK
+   Defined on :root; the DARK preset values are the defaults (SEDELA hero look).
+   Presets and components override these vars — they never rewrite the rules.
+   --------------------------------------------------------------------------- */
+:root {
+  /* layer 1 — backdrop */
+  --glass-blur: 16px;
+  --glass-saturate: 140%;
+
+  /* layer 2 — body tint (channel-trick: "R G B", alpha applied per use) */
+  --glass-tint: 255 255 255;
+  --glass-tint-opacity: 0.08;
+  --glass-fill: rgb(var(--glass-tint) / var(--glass-tint-opacity));
+
+  /* layer 3 — rim / edge + corner radius */
+  --glass-border: rgb(255 255 255 / 0.18);
+  --glass-radius: 18px;
+
+  /* layer 4 — specular highlight (inner top light + sheen) */
+  --glass-highlight: rgb(255 255 255 / 0.5);
+
+  /* focus ring — theme-stable, NOT tint-driven (a near-white ring stays visible
+     on dark; the light preset overrides it to a dark ring). */
+  --glass-focus: rgb(255 255 255 / 0.65);
+
+  /* layer 5 — inner depth (inner bottom shadow -> thickness) */
+  --glass-inner-shadow: rgb(0 0 0 / 0.18);
+
+  /* layer 6 — elevation (outer drop shadow -> floats) */
+  --glass-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
+
+  /* pointer-tracking specular position (set by JS on .glass--interactive).
+     Registered with @property below so it can animate smoothly. Default = center. */
+  --mx: 50%;
+  --my: 50%;
+}
+
+
+/* -----------------------------------------------------------------------------
+   2) BASE MATERIAL — .glass (L1: layers 1,2,3,6) — FALLBACK-FIRST
+   The base rule ships a legible, solid-ish translucent panel so text stays
+   readable even where backdrop-filter is unsupported. The @supports block then
+   UPGRADES it to true glass (swaps to the lighter --glass-fill + adds blur).
+   isolation:isolate contains the stacking context so ::before/::after sheen
+   anchors correctly; position:relative anchors the absolutely-placed pseudos.
+   --------------------------------------------------------------------------- */
+.glass {
+  position: relative;
+  isolation: isolate;
+
+  /* Fallback: opaque-enough tint (0.6 alpha) keeps content legible with no blur. */
+  background: rgb(var(--glass-tint) / 0.6);
+
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
+}
+
+/* UPGRADE: only when the browser can actually blur the backdrop do we drop to
+   the lighter translucent fill and turn on the real material. -webkit- first
+   so Safari is covered; both prefixes always paired. */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass {
+    background: var(--glass-fill);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  }
+}
+
+
+/* -----------------------------------------------------------------------------
+   3) LEVEL 2 — specular / "liquid" (adds layers 4 + 5 + gradient fill + sheen)
+   Pure CSS, cross-browser. Top-lit gradient body, inner top highlight (thickness
+   above) and inner bottom shadow (depth below), plus a soft diagonal sheen drawn
+   on a non-interactive ::before. Stacks ON the base: <el class="glass glass--l2">.
+
+   FALLBACK-FIRST: the gradient fill is a translucent body that reads fine ONLY
+   when the backdrop blurs behind it; with no blur it would leave text on bare
+   page. So the base rule ships a solid-ish legible fill (0.6 alpha) OUTSIDE
+   @supports, and the @supports block UPGRADES to the top-lit gradient.
+
+   PSEUDO BUDGET — 2 pseudo-elements, no collision:
+     ::before  = STATIC sheen (L2) AND/OR pointer specular (interactive).
+                 When both apply they are COMBINED into one layered background
+                 (see .glass--l2.glass--interactive::before below) so they coexist
+                 instead of one overwriting the other.
+     ::after   = ANIMATED travelling sheen (L3 only).
+   This 2-pseudo budget is why L2 + L3 + interactive can all stack on one element.
+   --------------------------------------------------------------------------- */
+.glass--l2 {
+  /* Fallback: solid-ish legible body (0.6 alpha) — readable with zero blur. */
+  background: rgb(var(--glass-tint) / 0.6);
+
+  /* layer 6 elevation + layer 4 inner top highlight + layer 5 inner bottom depth */
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 var(--glass-highlight),
+    inset 0 -8px 22px var(--glass-inner-shadow);
+}
+
+/* UPGRADE: only when the backdrop can actually blur do we drop to the lighter
+   top-lit gradient body (it relies on the frosted backdrop showing through). */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass--l2 {
+    /* layer 2 upgraded: top-lit gradient instead of the flat fallback fill */
+    background: linear-gradient(
+      135deg,
+      rgb(var(--glass-tint) / 0.15),
+      rgb(var(--glass-tint) / 0.04)
+    );
+  }
+}
+
+/* Diagonal sheen (::before) — drawn on a pseudo so it never intercepts clicks. */
+.glass--l2::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;                 /* sit behind content, above the backdrop */
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(158deg, var(--glass-highlight), transparent 36%);
+  opacity: 0.55;
+}
+
+
+/* -----------------------------------------------------------------------------
+   4) LEVEL 3 — refraction / lensing (adds real backdrop displacement + sheen)
+   backdrop-filter: url(#glass-refract) bends what's behind the panel through an
+   feDisplacementMap. This is Chromium-leaning: Safari/Firefox ignore the url()
+   and gracefully degrade to the blur+saturate (i.e. an L2-grade panel) — no
+   breakage. Reserve L3 for hero panels; it has real compositing cost.
+
+   CUMULATIVE: L3 is authored to build ON TOP of L2 — the intended stack is
+   <el class="glass glass--l2 glass--l3">. L2 supplies the gradient body + sheen
+   and adds NO backdrop-filter, so L3 simply augments the base blur with the
+   refraction filter (no clobber). Guarded by the same @supports as the base so
+   that, with no blur support, all three levels degrade to the L2 solid fallback.
+   --------------------------------------------------------------------------- */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass--l3 {
+    -webkit-backdrop-filter: blur(3px) saturate(180%) url(#glass-refract);
+    backdrop-filter: blur(3px) saturate(180%) url(#glass-refract);
+  }
+}
+
+/* Animated travelling sheen — motion is opt-in via prefers-reduced-motion so we
+   never animate for users who asked for stillness. The ::after carries it. */
+.glass--l3::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    var(--glass-highlight) 45%,
+    transparent 60%
+  );
+  background-size: 220% 220%;
+  background-position: 0% 50%;
+  opacity: 0.35;
+  mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .glass--l3::after {
+    animation: glass-sheen 7s ease-in-out infinite;
+  }
+  @keyframes glass-sheen {
+    0%,
+    100% { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+  }
+}
+
+
+/* -----------------------------------------------------------------------------
+   5) INTERACTIVE — pointer-tracking specular (opt-in, reads --mx/--my)
+   A radial highlight follows the cursor. JS (useGlassPointer / the demo script)
+   writes --mx/--my as percentages on pointermove; here we just paint them.
+   @property registration makes the vars animatable + type-safe (so the highlight
+   eases rather than jumping). Add alongside any level: class="glass glass--interactive".
+
+   PSEUDO BUDGET (see §3): the pointer specular shares ::before with the L2 static
+   sheen. Rather than let one overwrite the other, the COMBINED selector below
+   (.glass--l2.glass--interactive::before) layers both backgrounds in a single
+   ::before so an L2 + interactive element keeps its diagonal sheen AND tracks the
+   cursor. ::after stays reserved for the L3 animated sheen, so L2 + L3 +
+   interactive coexist on one element.
+   --------------------------------------------------------------------------- */
+@property --mx {
+  syntax: "<length-percentage>";
+  inherits: true;
+  initial-value: 50%;
+}
+@property --my {
+  syntax: "<length-percentage>";
+  inherits: true;
+  initial-value: 50%;
+}
+
+.glass--interactive::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--mx, 50%) var(--my, 50%),
+    rgb(var(--glass-tint) / 0.5),
+    transparent 45%
+  );
+  opacity: 0.35;
+  transition: opacity 0.25s ease;
+}
+
+/* COMBINED: L2 + interactive — layer the pointer specular OVER the diagonal sheen
+   in one ::before so neither is lost (the two would otherwise collide on ::before). */
+.glass--l2.glass--interactive::before {
+  background:
+    radial-gradient(
+      circle at var(--mx, 50%) var(--my, 50%),
+      rgb(var(--glass-tint) / 0.45),
+      transparent 45%
+    ),
+    linear-gradient(158deg, var(--glass-highlight), transparent 36%);
+}
+
+.glass--interactive:hover::before {
+  opacity: 0.6;
+}
+
+/* Pointer specular is decorative; kill it when motion is unwelcome. */
+@media (prefers-reduced-motion: reduce) {
+  .glass--interactive::before { display: none; }
+}
+
+
+/* -----------------------------------------------------------------------------
+   6) COMPONENTS — same tokens, different geometry + interaction states.
+   Each builds on .glass (compose: class="glass glass-card", etc.).
+   --------------------------------------------------------------------------- */
+
+/* --- Card: roomy radius-xl panel (SEDELA stat & chart panels) --- */
+.glass-card {
+  --glass-radius: 22px;
+  border-radius: var(--glass-radius);
+  padding: 20px 22px;
+}
+
+/* --- Button: interactive capsule. Maps iOS .buttonStyle(.glass). --- */
+.glass-button {
+  --glass-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 0.6em 1.2em;
+  border-radius: var(--glass-radius);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    filter 0.2s ease;
+}
+
+.glass-button:hover {
+  /* brighten the body on hover without a second backdrop-filter pass */
+  background-color: rgb(var(--glass-tint) / 0.16);
+  filter: brightness(1.08);
+}
+
+.glass-button:active {
+  transform: scale(0.98);
+}
+
+.glass-button:focus-visible {
+  outline: none;
+  /* visible, theme-stable focus ring layered on top of the elevation shadow.
+     Uses --glass-focus (NOT the tint) so the ring never vanishes when the tint
+     matches the backdrop — the light preset overrides it to a dark ring. */
+  box-shadow:
+    var(--glass-shadow),
+    0 0 0 3px var(--glass-focus);
+}
+
+/* Prominent variant — maps iOS .glassProminent: a saturated tinted body that
+   reads as the primary action. Inherits the tint hue, just denser + glowing. */
+.glass-button--prominent {
+  background: linear-gradient(
+    135deg,
+    rgb(var(--glass-tint) / 0.42),
+    rgb(var(--glass-tint) / 0.22)
+  );
+  border-color: rgb(var(--glass-tint) / 0.55);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 var(--glass-highlight),
+    0 0 18px rgb(var(--glass-tint) / 0.35);
+}
+
+.glass-button--prominent:hover {
+  background: linear-gradient(
+    135deg,
+    rgb(var(--glass-tint) / 0.52),
+    rgb(var(--glass-tint) / 0.3)
+  );
+  filter: brightness(1.05);
+}
+
+/* --- Nav: sticky topbar / toolbar (SEDELA top nav). Stronger blur, thin rim. --- */
+.glass-nav {
+  --glass-blur: 22px;
+  --glass-radius: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  /* override the all-round border for a single hairline bottom rim */
+  border: 0;
+  border-bottom: 1px solid var(--glass-border);
+  border-radius: 0;
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-nav {
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  }
+}
+
+/* --- Pill: small interactive capsule (nav items, filters) --- */
+.glass-pill {
+  --glass-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.35em 0.85em;
+  border-radius: var(--glass-radius);
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+/* --- Badge: tiny static capsule ($12.4K tag, "Total Pending" chip) --- */
+.glass-badge {
+  --glass-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.2em 0.6em;
+  border-radius: var(--glass-radius);
+  font-size: 0.75rem;
+  line-height: 1;
+  font-weight: 600;
+}
+
+/* --- Modal: centered floating panel. The scrim carries its OWN blur so the
+   whole page behind dims and frosts. Note the fixed positioning. --- */
+.glass-modal {
+  --glass-radius: 26px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1001;
+  width: min(92vw, 460px);
+  max-height: 86vh;
+  overflow: auto;
+  padding: 28px;
+  border-radius: var(--glass-radius);
+}
+
+/* Scrim: full-viewport blurred backdrop behind a modal. Its own backdrop-filter
+   frosts the page; the rgba dims it. Fallback (no blur) still dims via the base. */
+.glass-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgb(0 0 0 / 0.45);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-scrim {
+    background: rgb(0 0 0 / 0.3);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    backdrop-filter: blur(6px) saturate(120%);
+  }
+}
+
+
+/* -----------------------------------------------------------------------------
+   7) PRESETS — retune the TOKENS only, on a [data-glass-theme] ancestor.
+   dark is the :root default (above); light and tinted override below.
+   --------------------------------------------------------------------------- */
+
+/* LIGHT — the hard case. On bright backdrops a near-white border vanishes, so we
+   DARKEN the rim (the #1 light-glass gotcha), flip to a denser white-ish tint,
+   soften the highlight, and lighten the elevation shadow. */
+[data-glass-theme="light"] {
+  --glass-tint: 255 255 255;
+  --glass-tint-opacity: 0.55;
+  --glass-saturate: 120%;
+  /* GOTCHA: dark, not white — a white rim disappears on light backgrounds. */
+  --glass-border: rgb(0 0 0 / 0.12);
+  --glass-highlight: rgb(255 255 255 / 0.7);
+  /* same gotcha for the focus ring — flip it dark so it stays visible on light. */
+  --glass-focus: rgb(17 19 24 / 0.6);
+  --glass-inner-shadow: rgb(0 0 0 / 0.08);
+  --glass-shadow: 0 10px 30px rgb(0 0 0 / 0.16);
+  color: rgb(17 19 24);
+}
+
+/* TINTED — colored glass (maps iOS .tint). Swap the tint HUE; every alpha-driven
+   surface (fill, gradients, prominent button, focus ring) recolors for free
+   because they all read rgb(var(--glass-tint) / …). Example: SEDELA orange. */
+[data-glass-theme="tinted"] {
+  --glass-tint: 255 122 26;
+  --glass-tint-opacity: 0.16;
+  --glass-saturate: 150%;
+  --glass-border: rgb(255 122 26 / 0.4);
+  --glass-highlight: rgb(255 196 150 / 0.55);
+  --glass-inner-shadow: rgb(60 20 0 / 0.3);
+  --glass-shadow: 0 12px 40px rgb(120 50 0 / 0.4);
+}
+
+
+/* -----------------------------------------------------------------------------
+   8) GOOEY MERGE CONTAINER — .glass-goo (Tier B morphing)
+   Applies the SVG gooey filter so overlapping child blobs fuse into one
+   silhouette (mercury-like merge/split). The filter itself — #glass-goo
+   (feGaussianBlur -> feColorMatrix alpha-crank) — lives in the inline <svg>
+   defs you mount once per document (see assets/demo.html and <GlassFilter/>).
+   See references/morphing.md for the loud caveats (composing with
+   backdrop-filter is finicky; real perf cost; advanced).
+   --------------------------------------------------------------------------- */
+.glass-goo {
+  filter: url(#glass-goo);
+}
+
+
+/* -----------------------------------------------------------------------------
+   9) ACCESSIBILITY — honour user preferences with solid, high-contrast fallbacks.
+   These override the translucent material entirely when transparency or low
+   contrast would harm the user, regardless of level/preset/component.
+   --------------------------------------------------------------------------- */
+
+/* Reduced transparency: drop ALL blur and go to an opaque panel so nothing
+   bleeds through. We zero the backdrop-filter AND solidify the fill. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-nav,
+  .glass-scrim,
+  .glass-modal {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .glass,
+  .glass--l2,
+  .glass-card,
+  .glass-button,
+  .glass-pill,
+  .glass-badge,
+  .glass-modal {
+    background: rgb(var(--glass-tint) / 0.92);
+  }
+  .glass-button--prominent {
+    background: rgb(var(--glass-tint) / 1);
+  }
+  .glass-scrim {
+    background: rgb(0 0 0 / 0.7);
+  }
+}
+
+/* Higher contrast: same opaque treatment plus a firmer rim, and we drop the
+   decorative refraction/sheen so text sits on a stable, legible surface. */
+@media (prefers-contrast: more) {
+  .glass,
+  .glass-nav,
+  .glass-scrim,
+  .glass-modal {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .glass,
+  .glass--l2,
+  .glass-card,
+  .glass-button,
+  .glass-pill,
+  .glass-badge,
+  .glass-modal {
+    background: rgb(var(--glass-tint) / 0.95);
+    border-color: currentColor;
+  }
+  .glass--l2::before,
+  .glass--l3::after,
+  .glass--interactive::before {
+    display: none;
+  }
+}
