@@ -176,6 +176,26 @@
   }
 }
 
+/* -----------------------------------------------------------------------------
+   LEVEL 3 variant — radial "lens" refraction (precise edge-lensing).
+   .glass--lens is an ALTERNATIVE to .glass--l3: it swaps the turbulence map for a
+   precomputed RADIAL displacement map — strong bend at the rim, flat centre (the
+   iOS lens look), versus .glass--l3's organic frost. Use INSTEAD of .glass--l3:
+       <el class="glass glass--l2 glass--lens">
+   The map is SIZE-SPECIFIC — backdrop-filter's filter region does NOT auto-fit the
+   element — so #glass-refract-lens must be mounted with a map built for THIS
+   element's W×H. Generate it with assets/displacement-map.js (vanilla) or
+   useGlassLens() + <GlassLensFilter> (React); regenerate on resize.
+   Same Chromium-only caveat + @supports degradation to the L2 solid as .glass--l3.
+   (Technique adapted from https://kube.io/blog/liquid-glass-css-svg/.)
+   --------------------------------------------------------------------------- */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass--lens {
+    -webkit-backdrop-filter: blur(2px) saturate(180%) url(#glass-refract-lens);
+    backdrop-filter: blur(2px) saturate(180%) url(#glass-refract-lens);
+  }
+}
+
 /* Animated travelling sheen — motion is opt-in via prefers-reduced-motion so we
    never animate for users who asked for stillness. The ::after carries it. */
 .glass--l3::after {

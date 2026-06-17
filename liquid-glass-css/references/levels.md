@@ -202,6 +202,110 @@ The `x/y/width/height="-20%/140%"` on the `<filter>` enlarges the filter region 
 
 > **Tuning cheat-sheet:** want a *subtle* lens → lower `scale` (12–20) and lower `baseFrequency` (.004–.008). Want *pebbled/shower-glass* → raise `baseFrequency` (.02+). Want *more violent bending* → raise `scale`. Keep `numOctaves` at 1–2 unless you have a measured perf budget.
 
+### Refraction style — turbulent vs radial lens
+
+The `#glass-refract` filter above is the **default** L3 refraction, and `feTurbulence` is what gives it its character: random, smooth noise warps the backdrop *uniformly* across the whole pane. That reads as **organic frosted glass** — textured, rippled, alive — and it ships out of the box with zero per-element setup (one filter, any size, any number of panes). But it is *not* a lens: a real lens (and the iOS "Liquid Glass" look) bends the background hardest at the **rim** and leaves the **centre** almost flat. The `.glass--lens` variant gives you exactly that — **precise edge-lensing** — at the cost of a little more wiring, because the map it uses is size-specific.
+
+Pick by the look you want:
+
+- **Turbulent (`glass--l3`, ships by default)** — organic, uniform frost. No setup, size-agnostic, one filter for all panes. Reach for it unless you specifically want the lens.
+- **Radial lens (`glass--lens`)** — precise, iOS-accurate edge refraction: strong bend at the rim, flat centre. More faithful to Apple's material, but the displacement map must be (re)generated for each element's exact `W×H` (see the size caveat below).
+
+`.glass--lens` is an **alternative to `glass--l3`, not stacked with it** — you swap one class for the other. Both build on L2 and both carry the identical Chromium-only / `@supports` story: where `backdrop-filter: url()` is honoured (Chromium) you get the lens, and everywhere else (Safari/Firefox) it degrades to a clean L2-grade panel, exactly like `glass--l3`. From `assets/glass.css`:
+
+```css
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass--lens {
+    -webkit-backdrop-filter: blur(2px) saturate(180%) url(#glass-refract-lens);
+    backdrop-filter: blur(2px) saturate(180%) url(#glass-refract-lens);
+  }
+}
+```
+
+The intended stack is `glass glass--l2 glass--lens` (L2 supplies the body/sheen; `glass--lens` supplies the refraction) — note it is `--lens` *instead of* `--l3`, not alongside it.
+
+#### The `#glass-refract-lens` filter — feImage + feDisplacementMap
+
+Where `#glass-refract` *generates* its displacement procedurally with `feTurbulence`, the lens filter *loads* a precomputed displacement image with `feImage` and feeds that to the same `feDisplacementMap`:
+
+```html
+<filter id="glass-refract-lens" x="0" y="0" width="100%" height="100%"
+        primitiveUnits="userSpaceOnUse">
+  <feImage result="map" preserveAspectRatio="none"
+           href="<dataURL from makeDisplacementMap()>"
+           x="0" y="0" width="W" height="H"/>
+  <feDisplacementMap in="SourceGraphic" in2="map" scale="40"
+                     xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+```
+
+Primitive by primitive:
+
+1. **`feImage`** pulls in the displacement map as a data-URL PNG (`href`) and paints it at `x/y/width/height` = the element's box, `preserveAspectRatio="none"` so it stretches to fill exactly. `result="map"` names it for the next stage. This replaces `feTurbulence`'s *random* field with a *designed* one.
+2. **`feDisplacementMap`** is the same lens primitive as before — `in="SourceGraphic"` (the backdrop), `in2="map"`, `xChannelSelector="R" yChannelSelector="G"` (red drives horizontal shift, green vertical), `scale="40"` (max displacement in px, the strength dial). Because the map encodes a *rim-biased* field instead of noise, the warp concentrates at the edge.
+3. **`primitiveUnits="userSpaceOnUse"`** on the `<filter>` means the `feImage`'s `width="W"`/`height="H"` are read in **CSS pixels**, not the default `objectBoundingBox` fractions — so you place the map at the element's literal size. This is what ties the filter to a specific `W×H`.
+
+#### The displacement-map encoding (R/G = x/y, neutral 128)
+
+A displacement map is just an image where each pixel's colour channels *are* a vector. Both filters obey the same convention (it's `feDisplacementMap`'s contract):
+
+- **Red channel → x-displacement**, **Green channel → y-displacement**. `xChannelSelector="R" yChannelSelector="G"` selects them.
+- **128 is neutral** (no shift). A channel value of `128` maps to displacement `0`; the range is **±127** around it, so `0` = full negative shift, `255` = full positive. A flat field of `rgb(128,128,128)` displaces *nothing*.
+- **Blue is unused** here — `data[i + 2] = 128;` writes a neutral blue purely as a placeholder (room for chromatic-aberration experiments — see *Going further* below).
+
+`assets/displacement-map.js` builds the radial map from a **rounded-rect signed-distance field**: for every pixel it computes the signed distance to a rounded rectangle (corner `radius`) and the outward normal there, then ramps a smooth `bump()` (a sine hump) across a rim band of width `bezel` — peaking mid-bezel, fading to **0 at the edge and ~0 in the centre**. Inside the rim it displaces *along the inward normal*, so the rim samples the background from just outside the pane — the classic "fat edge" lensing. That edge-taper is the whole difference from turbulence: the bend lives in the bezel, the middle stays clear.
+
+#### Generating the map and using `.glass--lens` (vanilla)
+
+`makeDisplacementMap` returns a PNG data URL (or `''` on the server — it guards on `typeof document`, so it's SSR-safe):
+
+```js
+import { makeDisplacementMap } from './displacement-map.js';
+
+const el = document.querySelector('.glass--lens');
+const { width, height } = el.getBoundingClientRect();
+const map = makeDisplacementMap({
+  width, height,
+  radius: 18,   // match the element's border-radius
+  bezel: 26,    // width of the refracting rim band
+  sign: 1,      // +1 convex (rim pulls background outward), -1 concave
+});
+
+// feed `map` into the #glass-refract-lens <feImage href> for THIS element's W×H
+document.querySelector('#glass-refract-lens feImage')
+  .setAttribute('href', map);
+```
+
+```html
+<div class="glass glass--l2 glass--lens">…</div>
+```
+
+#### Size caveat — the map is element-specific, regenerate on resize
+
+This is the one real cost of the lens, and it's the same gotcha called out in [Common `backdrop-filter` footguns](#common-backdrop-filter-footguns): **`backdrop-filter`'s filter region does not auto-fit the element.** The turbulent filter doesn't care — noise tiles at any size. But a radial map is *drawn at a specific `W×H`*; render it into a differently-sized box and `preserveAspectRatio="none"` stretches the rim taper out of place, so the lensing no longer lines up with the edge. The rule:
+
+> **A lens map must be built for the element's exact `W×H`, and rebuilt whenever that size changes.** Wire a `ResizeObserver` to regenerate `makeDisplacementMap({ width, height, … })` and re-point the `<feImage href>` on resize. The React helper below does this for you.
+
+#### React — `useGlassLens` + `<GlassLensFilter>`
+
+In `assets/Glass.tsx`, the resize bookkeeping is wrapped in a hook + a filter component (types: `GlassLensOptions`, `GlassLensState`, `GlassLensFilterProps`). `useGlassLens` measures the element via `ResizeObserver`, regenerates the map on resize, and is client-only (empty `map` during SSR); `<GlassLensFilter>` mounts `#glass-refract-lens` with that map and renders nothing until it has a map + size:
+
+```tsx
+const { ref, map, size } = useGlassLens({ radius: 18, bezel: 26 });
+return (
+  <>
+    <GlassLensFilter href={map} width={size.width} height={size.height} />
+    <GlassCard level={2} ref={ref} className="glass--lens">…</GlassCard>
+  </>
+);
+```
+
+`useGlassLens<T>(options?)` returns `{ ref, map, size }`; `<GlassLensFilter>` takes `id` (default `glass-refract-lens`), `href`, `width`, `height`, and `scale` (default `40` — the `feDisplacementMap` strength). For several differently-sized lens surfaces, render one `GlassLensFilter` per size with distinct `id`s.
+
+> **Going further — chromatic aberration.** Real lenses split colour at the rim: red, green, and blue refract by slightly different amounts (the coloured fringing you see at a magnifier's edge). The blue channel of the map is currently unused — one route is to run *two* `feDisplacementMap` passes at slightly offset `scale` values and recombine the R vs B channels with a small offset, so the rim fringes faintly. Out of scope for the shipped filter, but the encoding leaves room for it.
+
+The whole technique — SDF-driven displacement map, the Snell's-law derivation behind it, and the `feImage` wiring — is adapted from kube.io's write-up: **<https://kube.io/blog/liquid-glass-css-svg/>**. `makeDisplacementMap` is a practical approximation of that derivation — close enough for UI, far cheaper to reason about.
+
 ---
 
 ## Gradient-rim techniques (advanced layer 3)

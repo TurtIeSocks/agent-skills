@@ -231,6 +231,17 @@
                            xChannelSelector="R" yChannelSelector="G" />
       </filter>
 
+      <!-- Lens refraction (.glass--lens): a precomputed RADIAL displacement map,
+           set at runtime by the module script below and sized to #lensCard.
+           primitiveUnits=userSpaceOnUse → feImage x/y/width/height are CSS px. -->
+      <filter id="glass-refract-lens" x="0" y="0" width="100%" height="100%"
+              primitiveUnits="userSpaceOnUse">
+        <feImage id="glass-lens-map" result="map" preserveAspectRatio="none"
+                 x="0" y="0" width="300" height="180" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="40"
+                           xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+
       <!-- Tier B gooey merge: heavy blur, then crank alpha to a hard step so
            overlapping blurred shapes snap into a single fused silhouette. -->
       <filter id="glass-goo">
@@ -313,6 +324,32 @@
       <p class="legend" style="margin-top:14px">
         L3 backdrop refraction is Chromium-leaning; Safari/Firefox ignore the
         <code>url()</code> and gracefully fall back to the L2-grade blur — no breakage.
+      </p>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- REFRACTION STYLE — turbulent (noise) vs lens (radial map). -->
+    <!-- ================================================================= -->
+    <section>
+      <h2>Refraction style — turbulent vs lens</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <article class="glass glass--l2 glass--l3 glass-card">
+          <div class="lvl-tag">Turbulent — feTurbulence</div>
+          <div class="card-label">Organic frost</div>
+          <div class="card-value">rippled</div>
+          <div class="card-foot"><span class="glass glass-badge">noise</span> wavy, uniform distortion (ships by default)</div>
+        </article>
+        <article id="lensCard" class="glass glass--l2 glass--lens glass-card">
+          <div class="lvl-tag">Lens — radial map</div>
+          <div class="card-label">Edge lensing</div>
+          <div class="card-value">refracted</div>
+          <div class="card-foot"><span class="glass glass-badge">map</span> bends at the rim, flat centre (iOS-accurate)</div>
+        </article>
+      </div>
+      <p class="legend" style="margin-top:14px">
+        <code>.glass--lens</code> swaps <code>feTurbulence</code> for a precomputed radial
+        displacement map (<code>assets/displacement-map.js</code>), regenerated to match the
+        card's size. Same Chromium-only caveat as L3.
       </p>
     </section>
 
@@ -526,6 +563,30 @@
     document.getElementById('gooBtn').addEventListener('click', () => {
       gooField.classList.toggle('is-merged');
     });
+  </script>
+
+  <!-- Lens refraction map — generated to match #lensCard's size and injected into
+       #glass-refract-lens. Module script (deferred) so it runs after parse. -->
+  <script type="module">
+    import { makeDisplacementMap } from './displacement-map.js';
+    const card = document.getElementById('lensCard');
+    const img = document.getElementById('glass-lens-map');
+    function buildLens() {
+      if (!card || !img) return;
+      const r = card.getBoundingClientRect();
+      const w = Math.round(r.width);
+      const h = Math.round(r.height);
+      if (!w || !h) return;
+      const radius = parseFloat(getComputedStyle(card).borderRadius) || 18;
+      const url = makeDisplacementMap({ width: w, height: h, radius, bezel: 28, sign: 1 });
+      img.setAttribute('width', String(w));
+      img.setAttribute('height', String(h));
+      img.setAttribute('href', url);
+      img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', url);
+    }
+    buildLens();
+    // The map is size-specific — rebuild it whenever the card resizes.
+    if (window.ResizeObserver && card) new ResizeObserver(buildLens).observe(card);
   </script>
 </body>
 </html>

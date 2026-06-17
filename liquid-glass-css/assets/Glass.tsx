@@ -27,6 +27,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
   type ComponentPropsWithoutRef,
   type CSSProperties,
   type ElementType,
@@ -35,6 +36,10 @@ import {
   type ReactNode,
   type Ref,
 } from 'react';
+// Sibling generator (plain ESM .js so the vanilla/demo path can import it in the
+// browser too). In a TS project, allowJs (or a bundler's default JS resolution)
+// makes this import resolve; the map is generated client-side only.
+import { makeDisplacementMap } from './displacement-map.js';
 
 /* ------------------------------------------------------------------ *\
    Shared types
@@ -283,6 +288,126 @@ export function GlassFilter({
             <feComposite in="SourceGraphic" in2="goo" operator="atop" />
           </filter>
         ) : null}
+      </defs>
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ *\
+   Lens refraction — radial displacement map (the `.glass--lens` variant)
+
+   Unlike `<GlassFilter>` (static, size-agnostic), a lens map is SIZE-SPECIFIC:
+   backdrop-filter's filter region does not auto-fit the element, so the map must
+   be generated for the element's exact W×H. `useGlassLens` measures the element
+   and (re)builds the map; `<GlassLensFilter>` mounts it as `#glass-refract-lens`,
+   which `.glass--lens` in glass.css references.
+\* ------------------------------------------------------------------ */
+
+export interface GlassLensOptions {
+  /** Corner radius in px — match the element's border-radius. Default 18. */
+  radius?: number;
+  /** Width of the refracting rim band in px. Default 24. */
+  bezel?: number;
+  /** +1 convex (rim pulls the background outward), -1 concave. Default 1. */
+  sign?: number;
+}
+
+export interface GlassLensState<T extends HTMLElement> {
+  /** Put this on the glass element — it is measured to size the map. */
+  ref: Ref<T>;
+  /** The generated displacement-map data URL (empty until measured / on the server). */
+  map: string;
+  /** The element's current border-box size, in px. */
+  size: { width: number; height: number };
+}
+
+/**
+ * Measure a glass element and generate a radial lens displacement map sized to it,
+ * rebuilding on resize. Client-only (returns an empty map during SSR). Pair the
+ * returned `ref` with a `<GlassLensFilter>` fed the returned `map`/`size`.
+ *
+ * @example
+ * const { ref, map, size } = useGlassLens({ radius: 18, bezel: 26 });
+ * return (
+ *   <>
+ *     <GlassLensFilter href={map} width={size.width} height={size.height} />
+ *     <GlassCard level={2} ref={ref} className="glass--lens">…</GlassCard>
+ *   </>
+ * );
+ */
+export function useGlassLens<T extends HTMLElement = HTMLElement>(
+  options: GlassLensOptions = {},
+): GlassLensState<T> {
+  const { radius = 18, bezel = 24, sign = 1 } = options;
+  const ref = useRef<T | null>(null);
+  const [size, setSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const [map, setMap] = useState('');
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect(); // border-box — matches the filter region
+      setSize({ width: Math.round(r.width), height: Math.round(r.height) });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!size.width || !size.height) return;
+    setMap(makeDisplacementMap({ width: size.width, height: size.height, radius, bezel, sign }));
+  }, [size.width, size.height, radius, bezel, sign]);
+
+  return { ref: ref as Ref<T>, map, size };
+}
+
+export interface GlassLensFilterProps {
+  /** Filter id `.glass--lens` references. Default `glass-refract-lens`. */
+  id?: string;
+  /** Displacement-map data URL from `useGlassLens` / `makeDisplacementMap`. */
+  href: string;
+  /** Map dimensions in px — must match the element (from `useGlassLens().size`). */
+  width: number;
+  height: number;
+  /** Max displacement in px (feDisplacementMap scale). Default 40. */
+  scale?: number;
+}
+
+/**
+ * Mount the lens refraction filter. Renders nothing until it has a map + size.
+ * For several differently-sized lens surfaces, render one per size with distinct
+ * `id`s and point each element at its id via an inline `backdrop-filter`.
+ */
+export function GlassLensFilter({
+  id = 'glass-refract-lens',
+  href,
+  width,
+  height,
+  scale = 40,
+}: GlassLensFilterProps): ReactElement | null {
+  if (!href || !width || !height) return null;
+  return (
+    <svg aria-hidden="true" focusable="false" style={HIDDEN_SVG_STYLE}>
+      <defs>
+        <filter id={id} x="0" y="0" width="100%" height="100%" primitiveUnits="userSpaceOnUse">
+          <feImage
+            result="map"
+            preserveAspectRatio="none"
+            href={href}
+            x={0}
+            y={0}
+            width={width}
+            height={height}
+          />
+          <feDisplacementMap
+            in="SourceGraphic"
+            in2="map"
+            scale={scale}
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
+        </filter>
       </defs>
     </svg>
   );

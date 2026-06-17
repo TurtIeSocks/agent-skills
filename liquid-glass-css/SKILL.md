@@ -189,6 +189,9 @@ ALWAYS, regardless of level:
 | **L1** | `.glass` | 1,2,3,6 | `backdrop-filter` + `@supports` | universal baseline, tiny chips |
 | **L2** | `.glass .glass--l2` | + 4,5 | pure CSS gradients + insets + `::before` | default for any visible card/panel |
 | **L3** | `.glass .glass--l2 .glass--l3` | + refracted 1 | SVG `feDisplacementMap` (`#glass-refract`) | hero panels only; degrades to L2 off-Chromium |
+| **L3 · lens** | `.glass .glass--l2 .glass--lens` | + refracted 1 | radial displacement map (`#glass-refract-lens`) | *alternative* to `.glass--l3` — iOS-accurate edge-lensing, but size-specific (needs a generated map) |
+
+`.glass--lens` is a radial-displacement-map variant of L3 refraction: precise rim edge-lensing (more iOS-accurate than the default turbulent frost) instead of `feTurbulence`, at the cost of a per-element generated map. See `references/levels.md` and `assets/displacement-map.js` (`makeDisplacementMap`).
 
 ## Quick reference — components
 

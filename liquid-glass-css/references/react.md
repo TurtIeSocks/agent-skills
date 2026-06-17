@@ -90,6 +90,95 @@ Three things that bite people on first try:
 
 ---
 
+## Lens refraction — `useGlassLens()` + `<GlassLensFilter>`
+
+The default L3 filter (`#glass-refract`, mounted by `<GlassFilter>`) uses `feTurbulence` — random fractal noise that reads as **organic, uniform frost**. It ships by default and needs no setup. The **lens** variant is a *choice*, not a replacement: instead of noise, it displaces the backdrop hardest at the rim and leaves the centre flat — **precise iOS-accurate edge-lensing** — at the cost of being **size-specific** and a bit more setup. It pairs the `.glass--lens` class (an *alternative* to `.glass--l3`, not stacked with it) with a per-element displacement map. The map is built by `makeDisplacementMap` from a rounded-rect signed-distance field; the approach is adapted from [kube.io's Snell's-law derivation](https://kube.io/blog/liquid-glass-css-svg/).
+
+Two pieces:
+
+1. **`useGlassLens()`** — a ref hook that measures the element and generates a displacement-map data URL sized to it, regenerating on resize.
+2. **`<GlassLensFilter>`** — mounts that map as the SVG filter `#glass-refract-lens`, which `.glass--lens` in `glass.css` references.
+
+### Why this is separate from `<GlassFilter>`
+
+`<GlassFilter>` is **static and size-agnostic**: `feTurbulence` is procedural, so one `#glass-refract` def works for every element at every size — mount it once at the root and forget it. A lens map is **size-specific**: `backdrop-filter`'s filter region does **not** auto-fit the element (a known Chromium gotcha — see [`levels.md`](./levels.md)), so the displacement map must be generated at the element's exact `W×H` or the lensing lands in the wrong place. That measurement + per-size regeneration is exactly what `useGlassLens` exists to do, and it's why the lens filter can't just be folded into the always-on `<GlassFilter>`.
+
+### Usage (canonical — matches `assets/Glass.tsx`)
+
+```tsx
+const { ref, map, size } = useGlassLens({ radius: 18, bezel: 26 });
+return (
+  <>
+    <GlassLensFilter href={map} width={size.width} height={size.height} />
+    <GlassCard level={2} ref={ref} className="glass--lens">…</GlassCard>
+  </>
+);
+```
+
+That `<GlassCard level={2} … className="glass--lens">` emits `class="glass glass--l2 glass-card glass--lens"`. **`.glass--lens` is an alternative to `.glass--l3`, not stacked with it** — you reach for `glass--l2` + `glass--lens`, never `glass--l3` + `glass--lens`. Like L3 it's Chromium-only and degrades to a plain L2 surface where `backdrop-filter` SVG references aren't supported (same `@supports` guard).
+
+### `useGlassLens()` — measure + regenerate-on-resize
+
+```tsx
+const { ref, map, size } = useGlassLens<HTMLDivElement>({ radius: 18, bezel: 26, sign: 1 });
+```
+
+- **`ref`** — attach to the glass element. It is measured (via `getBoundingClientRect`, the border-box that matches the filter region) to size the map.
+- **`map`** — the generated displacement-map data URL. **Empty (`''`) until the element is measured, and empty on the server** (the underlying `makeDisplacementMap` returns `''` with no `document`/canvas, and the hook does all DOM work inside `useEffect`). Feed it to `<GlassLensFilter href={map}>`.
+- **`size`** — the element's current `{ width, height }` in px. Feed it to `<GlassLensFilter width height>`.
+
+**Regenerates on resize.** The hook attaches a `ResizeObserver` to the element; whenever the border-box changes it re-measures and rebuilds the map for the new `W×H`. So a fluid/responsive lens surface stays correct as it reflows — you don't manage that yourself. It's **client-only**: if `ResizeObserver` is undefined (SSR) the effect bails, leaving `map = ''` and `size = { width: 0, height: 0 }` until hydration.
+
+Options (all optional; these are the **hook's** defaults, set in `Glass.tsx`):
+
+| Option | Type | Default | Effect |
+|---|---|---|---|
+| `radius` | `number` | `18` | corner radius in px — **match the element's `border-radius`** |
+| `bezel` | `number` | `24` | width of the refracting rim band in px |
+| `sign` | `number` | `1` | `+1` convex (rim pulls the background outward), `-1` concave |
+
+### `<GlassLensFilter>` — mount the per-element filter
+
+Renders the hidden `<svg>` holding `#glass-refract-lens` (a `<feImage>` of the map + a `<feDisplacementMap>`). It **renders `null` until it has a non-empty `href`, `width`, and `height`** — so during SSR / before first measure it emits nothing, then mounts once `useGlassLens` produces a map. The map is fed in via `href` rather than regenerated here, keeping this component pure markup like `<GlassFilter>`.
+
+| Prop | Type | Default | Effect |
+|---|---|---|---|
+| `id` | `string` | `'glass-refract-lens'` | id `.glass--lens` references (`backdrop-filter: … url(#glass-refract-lens)`) |
+| `href` | `string` | — (required) | displacement-map data URL from `useGlassLens` / `makeDisplacementMap` |
+| `width` | `number` | — (required) | map width in px — **must match the element** (from `useGlassLens().size`) |
+| `height` | `number` | — (required) | map height in px — must match the element |
+| `scale` | `number` | `40` | max displacement in px (`feDisplacementMap` `scale`) |
+
+### Multiple lens surfaces of different sizes
+
+One `#glass-refract-lens` def is correct only for one `W×H`. **Two differently-sized lens surfaces need two distinct filter ids**, each fed its own map — you can't share the default id across sizes (the map baked into it would be the wrong size for the other element). Render one `<GlassLensFilter id="…">` per size, then point each element at its id with an **inline `backdrop-filter`** (since `glass.css`'s `.glass--lens` hard-codes `url(#glass-refract-lens)`, an element using a custom id must override that property inline):
+
+```tsx
+function LensSurface({ children }: { children: React.ReactNode }) {
+  const { ref, map, size } = useGlassLens<HTMLDivElement>({ radius: 18, bezel: 26 });
+  const id = 'glass-refract-lens--card';
+  return (
+    <>
+      <GlassLensFilter id={id} href={map} width={size.width} height={size.height} />
+      <GlassCard
+        level={2}
+        ref={ref}
+        className="glass--lens"
+        style={{ backdropFilter: `blur(2px) saturate(180%) url(#${id})` }}
+      >
+        {children}
+      </GlassCard>
+    </>
+  );
+}
+```
+
+For a **single** lens surface (the common case) you don't need any of this — keep the default `id="glass-refract-lens"` and `glass.css`'s `.glass--lens` references it for free; the snippet above is only for two-or-more independently-sized lenses on one page.
+
+> Same trade-off as the vanilla path: **turbulent** (`feTurbulence`, ships by default) = organic, uniform frost; **radial-lens** = precise, iOS-accurate edge-lensing that's size-specific and needs the measure-and-regenerate wiring above. Pick per surface. The map generator (`assets/displacement-map.js`, `makeDisplacementMap`) and the lens technique are credited to [kube.io](https://kube.io/blog/liquid-glass-css-svg/).
+
+---
+
 ## `useGlassPointer()` — pointer-tracking specular
 
 `.glass--interactive` paints a radial highlight at `var(--mx) var(--my)`. CSS can't read the cursor, so this hook writes those two custom properties (as percentages) on `pointermove`, then the `@property`-registered vars ease the highlight to the new spot. It is the only JavaScript in the whole skill, and it's **opt-in and reduced-motion-aware**.
@@ -385,10 +474,12 @@ export const GlassScrim = createGlassSurface('GlassScrim', { base: 'glass-scrim'
 | `GlassNav` | component | `glass glass-nav`, `as="nav"` — sticky topbar |
 | `GlassButton` | component | `glass glass-button` (+ `--prominent`), `as="button"` |
 | `GlassFilter` | component | mounts SVG `<defs>`; `#glass-refract` always, `#glass-goo` via `goo` |
+| `GlassLensFilter` | component | mounts the per-element lens filter `#glass-refract-lens`; renders `null` until fed a `map`/`size` (see [Lens refraction](#lens-refraction--useglasslens--glasslensfilter)) |
 | `useGlassPointer` | hook | rAF-throttled `--mx`/`--my` writer, live reduced-motion sync |
+| `useGlassLens` | hook | measures the element + generates a size-specific lens displacement map, regenerates on resize; client-only (empty `map` on the server) |
 | `useGlassMorphTransition` | hook | spring config for framer-motion `transition`, snaps under reduced motion (see [Tier A morph](#tier-a-morph--framer-motion-layoutid)) |
 
-Types are exported too: `GlassLevel`, `GlassTheme`, `GlassOwnProps`, `GlassButtonOwnProps`, `GlassFilterProps`, `PolymorphicProps`.
+Types are exported too: `GlassLevel`, `GlassTheme`, `GlassOwnProps`, `GlassButtonOwnProps`, `GlassFilterProps`, `GlassLensOptions`, `GlassLensState`, `GlassLensFilterProps`, `PolymorphicProps`.
 
 ---
 
