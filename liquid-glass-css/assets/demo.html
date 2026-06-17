@@ -8,7 +8,7 @@
   <!--
     Self-contained demo for the liquid-glass-css skill.
     The glass MATERIAL comes 100% from the sibling glass.css (single source of
-    truth) — this file only arranges demo content, paints a SEDELA-flavored
+    truth) — this file only arranges demo content, paints an
     ambient background, and wires the two interactive morph toggles + the theme
     switcher. Nothing here re-implements the glass look.
 
@@ -22,7 +22,7 @@
 
   <style>
     /* ---------------------------------------------------------------------
-       DEMO CHROME ONLY — page scaffold, the SEDELA ambient background, and
+       DEMO CHROME ONLY — page scaffold, the ambient background, and
        layout. None of this is part of the glass system; it is the stage the
        glass panels stand on. Real apps bring their own background + reset.
        ------------------------------------------------------------------- */
@@ -35,7 +35,7 @@
       padding: 28px clamp(16px, 4vw, 56px) 80px;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       color: rgb(238 240 245);
-      /* Warm dark base — the SEDELA charcoal. Colored blobs layer on top. */
+      /* Warm dark base — charcoal. Colored blobs layer on top. */
       background-color: #14110e;
       overflow-x: hidden;
     }
@@ -260,7 +260,7 @@
     <!-- NAV — sticky glass toolbar (.glass-nav). Theme switcher lives here. -->
     <!-- ================================================================= -->
     <nav class="glass glass-nav">
-      <span class="nav-brand"><span class="nav-dot"></span> SEDELA</span>
+      <span class="nav-brand"><span class="nav-dot"></span> Liquid Glass CSS</span>
       <button class="glass glass-button glass-pill" type="button" data-active>Overview</button>
       <button class="glass glass-button glass-pill" type="button">Payments</button>
       <button class="glass glass-button glass-pill" type="button">Reports</button>
@@ -569,6 +569,7 @@
        #glass-refract-lens. Module script (deferred) so it runs after parse. -->
   <script type="module">
     import { makeDisplacementMap } from './displacement-map.js';
+
     const card = document.getElementById('lensCard');
     const img = document.getElementById('glass-lens-map');
     function buildLens() {

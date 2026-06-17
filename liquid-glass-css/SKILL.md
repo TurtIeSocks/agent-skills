@@ -5,7 +5,7 @@ description: Use when building translucent "liquid glass" or glassmorphism UI on
 
 # Liquid Glass on the web (CSS)
 
-The web/CSS counterpart to the iOS **`liquid-glass-design`** skill. It teaches Apple's iOS 26 "Liquid Glass" look — translucent frosted panels that blur, tint, and refract what's behind them — built with **vanilla CSS, Tailwind v4, and React**. The reference aesthetic is a dark, warm, ambient-gradient dashboard (think a "SEDELA" admin UI) where every surface is a pane of frosted glass floating over glowing background blobs.
+The web/CSS counterpart to the iOS **`liquid-glass-design`** skill. It teaches Apple's iOS 26 "Liquid Glass" look — translucent frosted panels that blur, tint, and refract what's behind them — built with **vanilla CSS, Tailwind v4, and React**. The reference aesthetic is a dark, warm, ambient-gradient dashboard where every surface is a pane of frosted glass floating over glowing background blobs.
 
 The single most important idea, drilled throughout this skill:
 
@@ -215,7 +215,7 @@ Override the token block on a `data-` attribute; nothing else changes. **`dark` 
 
 | Attribute | Vibe | Key retune |
 |---|---|---|
-| *(none)* / `[data-glass-theme="dark"]` | SEDELA hero — low-opacity white tint, bright highlights | the defaults; pair with a warm ambient bg |
+| *(none)* / `[data-glass-theme="dark"]` | hero — low-opacity white tint, bright highlights | the defaults; pair with a warm ambient bg |
 | `[data-glass-theme="light"]` | glass on light pages (the hard case) | denser white tint + **darker rim** (the #1 light-glass fix) + softer shadow + less saturate |
 | `[data-glass-theme="tinted"]` | colored glass (maps iOS `.tint()`) | e.g. `--glass-tint: 255 122 26` for orange |
 
@@ -239,7 +239,7 @@ Copy-paste artifacts in `assets/`:
 | Want a… | Copy from |
 |---|---|
 | Drop-in stylesheet (tokens + 3 presets + L1–L3 + components + fallbacks) | `assets/glass.css` |
-| Self-contained live demo (SEDELA-flavored, morph/merge toggles, theme switcher) | `assets/demo.html` |
+| Self-contained live demo (morph/merge toggles, theme switcher) | `assets/demo.html` |
 | Typed React components + `useGlassPointer` + `<GlassFilter>` | `assets/Glass.tsx` |
 
 ---

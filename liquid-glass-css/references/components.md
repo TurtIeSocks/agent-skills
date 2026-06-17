@@ -58,14 +58,13 @@ Quick map:
 
 ## 1. Card — `.glass-card`
 
-A roomy panel: bigger corner radius and built-in padding. This is the SEDELA
-stat-tile / chart-panel workhorse. It carries no interaction states of its own —
+A roomy panel: bigger corner radius and built-in padding. It carries no interaction states of its own —
 add `.glass--interactive` if you want the pointer specular, or deepen the
 material with `.glass--l2` (and `.glass--l3` *on top of* `--l2`, since levels are
 cumulative). `--interactive` composes with either.
 
 ```css
-/* --- Card: roomy radius-xl panel (SEDELA stat & chart panels) --- */
+/* --- Card: roomy radius-xl panel --- */
 .glass-card {
   --glass-radius: 22px;
   border-radius: var(--glass-radius);
@@ -225,7 +224,7 @@ element.
 
 ## 3. Nav — `.glass-nav` (sticky toolbar / topbar)
 
-The SEDELA top bar: a sticky frosted strip with a **single hairline bottom rim**
+The top bar: a sticky frosted strip with a **single hairline bottom rim**
 instead of an all-round border, and a **stronger blur** so dense content
 scrolling underneath stays readable. Because it zeroes the base border and
 radius, it re-declares its own `backdrop-filter` inside an `@supports` block
@@ -233,7 +232,7 @@ radius, it re-declares its own `backdrop-filter` inside an `@supports` block
 is the nav's own).
 
 ```css
-/* --- Nav: sticky topbar / toolbar (SEDELA top nav). Stronger blur, thin rim. --- */
+/* --- Nav: sticky topbar / toolbar. Stronger blur, thin rim. --- */
 .glass-nav {
   --glass-blur: 22px;
   --glass-radius: 16px;
@@ -278,7 +277,7 @@ Things that bite people here:
 
 ```html
 <nav class="glass glass-nav">
-  <strong>SEDELA</strong>
+  <strong>Liquid Glass CSS</strong>
   <a class="glass glass-pill" href="#">Overview</a>
   <a class="glass glass-pill" href="#">Reports</a>
   <span style="margin-inline-start: auto"></span>

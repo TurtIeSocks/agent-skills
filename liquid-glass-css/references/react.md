@@ -341,7 +341,7 @@ Emits `glass glass-nav` and defaults to a `<nav>`. `.glass-nav` in `glass.css` i
 
 ```tsx
 <GlassNav>
-  <strong>SEDELA</strong>
+  <strong>Liquid Glass CSS</strong>
   <span className="glass-pill">Overview</span>
   <span className="glass-pill">Reports</span>
 </GlassNav>

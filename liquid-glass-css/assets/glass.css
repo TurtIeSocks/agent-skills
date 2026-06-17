@@ -31,7 +31,7 @@
 
 /* -----------------------------------------------------------------------------
    1) TOKEN BLOCK
-   Defined on :root; the DARK preset values are the defaults (SEDELA hero look).
+   Defined on :root; the DARK preset values are the defaults.
    Presets and components override these vars — they never rewrite the rules.
    --------------------------------------------------------------------------- */
 :root {
@@ -297,7 +297,7 @@
    Each builds on .glass (compose: class="glass glass-card", etc.).
    --------------------------------------------------------------------------- */
 
-/* --- Card: roomy radius-xl panel (SEDELA stat & chart panels) --- */
+/* --- Card: roomy radius-xl panel --- */
 .glass-card {
   --glass-radius: 22px;
   border-radius: var(--glass-radius);
@@ -369,7 +369,7 @@
   filter: brightness(1.05);
 }
 
-/* --- Nav: sticky topbar / toolbar (SEDELA top nav). Stronger blur, thin rim. --- */
+/* --- Nav: sticky topbar / toolbar. Stronger blur, thin rim. --- */
 .glass-nav {
   --glass-blur: 22px;
   --glass-radius: 16px;
@@ -479,7 +479,7 @@
 
 /* TINTED — colored glass (maps iOS .tint). Swap the tint HUE; every alpha-driven
    surface (fill, gradients, prominent button, focus ring) recolors for free
-   because they all read rgb(var(--glass-tint) / …). Example: SEDELA orange. */
+   because they all read rgb(var(--glass-tint) / …). */
 [data-glass-theme="tinted"] {
   --glass-tint: 255 122 26;
   --glass-tint-opacity: 0.16;
