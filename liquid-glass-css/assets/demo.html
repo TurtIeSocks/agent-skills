@@ -81,6 +81,43 @@
     /* Layout helpers (demo only). */
     .wrap { max-width: 1100px; margin: 0 auto; }
 
+    /* Apple Liquid Glass stage: a high-frequency "wallpaper" so refraction and
+       reflection actually show (Apple glass reflects the wallpaper; a flat
+       backdrop hides the effect). */
+    .apple-stage {
+      position: relative;
+      border-radius: 22px;
+      overflow: hidden;
+      min-height: 340px;
+      padding: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .wallpaper {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background:
+        conic-gradient(from 25deg at 32% 30%, #ff6a3d, #ffd23f, #2bd4a7, #3d7bff, #b14dff, #ff2d78, #ff6a3d),
+        radial-gradient(55% 55% at 78% 72%, #ff2d78, transparent 70%),
+        repeating-linear-gradient(58deg, rgb(255 255 255 / 0.07) 0 7px, transparent 7px 20px);
+      filter: saturate(0.95) brightness(0.8);
+    }
+    .wallpaper-dim {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background: linear-gradient(160deg, rgb(0 0 0 / 0.45), rgb(0 0 0 / 0.22));
+    }
+    .apple-stage > :not(.wallpaper):not(.wallpaper-dim) { position: relative; z-index: 1; }
+    /* Contrast-on-glass floor: keep foreground legible over the busy wallpaper. */
+    .apple-nav, .apple-card, .apple-btn { text-shadow: 0 1px 2px rgb(0 0 0 / 0.38); }
+    .apple-nav { display: flex; gap: 10px; padding: 8px 10px; border-radius: 999px; align-items: center; }
+    .apple-card { width: 260px; padding: 18px 20px; }
+    .apple-btn { align-self: center; }
+
     .page-head {
       display: flex;
       flex-wrap: wrap;
@@ -350,6 +387,36 @@
         <code>.glass--lens</code> swaps <code>feTurbulence</code> for a precomputed radial
         displacement map (<code>assets/displacement-map.js</code>), regenerated to match the
         card's size. Same Chromium-only caveat as L3.
+      </p>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- APPLE LIQUID GLASS — the full recipe over rich content. -->
+    <!-- ================================================================= -->
+    <section>
+      <h2>Apple Liquid Glass — the full recipe</h2>
+      <div class="apple-stage">
+        <div class="wallpaper" aria-hidden="true"></div>
+        <!-- Apple's clear variant REQUIRES a dimming layer for legibility. -->
+        <div class="wallpaper-dim" aria-hidden="true"></div>
+        <nav class="glass glass--clear glass--l3 glass--fresnel apple-nav" aria-label="demo">
+          <span class="glass glass--clear glass--fresnel glass-pill" data-active>Today</span>
+          <span class="glass glass--clear glass--fresnel glass-pill">Library</span>
+          <span class="glass glass--clear glass--fresnel glass-pill">Search</span>
+        </nav>
+        <article class="glass glass--clear glass--l3 glass--fresnel glass--interactive apple-card">
+          <div class="lvl-tag">Now playing</div>
+          <div class="card-value">Liquid Glass</div>
+          <div class="card-foot">clear + refraction + fresnel bezel + pointer specular</div>
+        </article>
+        <button class="glass glass--fresnel glass--interactive glass-button glass-button--prominent apple-btn" type="button">Play</button>
+      </div>
+      <p class="legend" style="margin-top:14px">
+        Apple's recipe = <strong>less</strong> blur + more refraction + a bright Fresnel bezel,
+        over rich content. <code>.glass--clear</code> thins the frost so light bends instead of
+        scattering; <code>.glass--fresnel</code> adds the rim (its cool+warm insets double as a
+        cheap chromatic fringe); <code>.glass--l3</code> bends the wallpaper behind.
+        <!-- ponytail: adaptive vibrancy (lighten-over-dark) needs JS backdrop sampling — skipped. -->
       </p>
     </section>
 

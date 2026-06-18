@@ -193,6 +193,8 @@ ALWAYS, regardless of level:
 
 `.glass--lens` is a radial-displacement-map variant of L3 refraction: precise rim edge-lensing (more iOS-accurate than the default turbulent frost) instead of `feTurbulence`, at the cost of a per-element generated map. See `references/levels.md` and `assets/displacement-map.js` (`makeDisplacementMap`).
 
+**Apple-accurate recipe** (vs 2020-era glassmorphism, which over-blurs): use **less** blur, more refraction, and a bright bezel — `.glass--clear` (thins frost so light bends instead of scattering, Apple's "clear" variant) + a refraction level (`.glass--l3`/`.glass--lens`) + `.glass--fresnel` (the bright rim; its cool+warm insets double as a cheap chromatic fringe), over **rich** content (Apple glass reflects the wallpaper — a flat backdrop hides it). The clear variant needs a dimming layer under it for legibility. Adaptive vibrancy (lighten-over-dark) is the one trait pure CSS can't do — it needs JS to sample the backdrop. See the "Apple Liquid Glass" section in `assets/demo.html`. For the native iOS/SwiftUI material itself, see the `liquid-glass-design` skill.
+
 ## Quick reference — components
 
 Same tokens, different geometry + state. Each maps to an iOS-skill twin. Full CSS in `references/components.md`.

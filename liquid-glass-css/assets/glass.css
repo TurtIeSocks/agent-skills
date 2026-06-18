@@ -293,6 +293,40 @@
 
 
 /* -----------------------------------------------------------------------------
+   APPLE-ACCURATE MODIFIERS — opt-in traits that read as iOS 26 Liquid Glass
+   rather than 2020-era glassmorphism. Compose with any level/component.
+
+   .glass--clear : the "clear" variant — far less blur, more transparency, so
+   refraction/lensing dominates over frost (Apple bends light, doesn't scatter
+   it). Just retunes two tokens, so the base .glass backdrop-filter re-resolves.
+   Pair with a level (--l3 / --lens) over RICH content; over plain/text content
+   add a dimming layer for legibility, as Apple's clear variant requires.
+
+   .glass--fresnel : the bright bezel — the single biggest "looks like Apple"
+   tell. A crisp white inner rim (Fresnel edge) plus a soft cool+warm inner
+   bloom; the cool/warm split doubles as a cheap chromatic-dispersion fringe.
+   Owns the box-shadow (supersedes the level's), so it composes after any level.
+
+   ponytail: adaptive vibrancy (glass lightens over dark content / darkens over
+   light, per Apple) needs JS to sample the backdrop — skipped here; pure CSS
+   can't read what's behind. Add a luminance-sampling layer if you need it.
+   --------------------------------------------------------------------------- */
+.glass--clear {
+  --glass-blur: 7px;
+  --glass-tint-opacity: 0.04;
+}
+
+.glass--fresnel {
+  box-shadow:
+    var(--glass-shadow),
+    inset 1.5px 1.5px 0.5px rgb(255 255 255 / 0.65),
+    inset -1.5px -1.5px 0.5px rgb(255 255 255 / 0.30),
+    inset 9px 9px 20px rgb(150 195 255 / 0.10),
+    inset -9px -9px 22px rgb(255 245 210 / 0.12);
+}
+
+
+/* -----------------------------------------------------------------------------
    6) COMPONENTS — same tokens, different geometry + interaction states.
    Each builds on .glass (compose: class="glass glass-card", etc.).
    --------------------------------------------------------------------------- */
