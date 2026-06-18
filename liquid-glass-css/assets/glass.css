@@ -25,7 +25,7 @@
        backdrop-filter support; @supports upgrades to translucency.
 
    REQUIRES (inline once per document — see assets/demo.html or <GlassFilter/>):
-     <svg> defs for filter #glass-refract (L3 lensing) and #glass-goo (Tier B).
+     <svg> defs for filter #glass-refract (L3 lensing) and #glass-goo (gooey merge).
    ============================================================================= */
 
 
@@ -562,7 +562,7 @@
 
 
 /* -----------------------------------------------------------------------------
-   8) GOOEY MERGE CONTAINER — .glass-goo (Tier B morphing)
+   8) GOOEY MERGE CONTAINER — .glass-goo (gooey-merge morphing)
    Applies the SVG gooey filter so overlapping child blobs fuse into one
    silhouette (mercury-like merge/split). The filter itself — #glass-goo
    (feGaussianBlur -> feColorMatrix alpha-crank) — lives in the inline <svg>

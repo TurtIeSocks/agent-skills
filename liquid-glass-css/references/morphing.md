@@ -13,17 +13,17 @@ silhouette you hand it. Everything here puts the `.glass` classes on a moving bo
 the box. None of it re-implements the look — that would break the DRY contract
 (`glass.css` is the single source of truth).
 
-Three tiers, descending in safety:
+Three techniques, descending in safety:
 
-| Tier | Effect | Tech | Ship it? |
+| Technique | Effect | Tech | Ship it? |
 |---|---|---|---|
-| **A** | Matched-geometry: one glass element flows between two states/positions | framer-motion `layoutId` (React) or vanilla FLIP | Yes — production-safe, the direct `glassEffectID` analog |
-| **B** | Gooey merge/split: two glass blobs fuse like mercury | SVG gooey filter (`#glass-goo`) + `backdrop-filter` via mask | Advanced — works but finicky; read the caveats |
-| **C** | Continuous liquid *refraction* deforming through the fuse | WebGL / Canvas shaders | Out of scope — pointer only, no impl below |
+| **Matched-geometry morph** | Matched-geometry: one glass element flows between two states/positions | framer-motion `layoutId` (React) or vanilla FLIP | Yes — production-safe, the direct `glassEffectID` analog |
+| **Gooey merge** | Gooey merge/split: two glass blobs fuse like mercury | SVG gooey filter (`#glass-goo`) + `backdrop-filter` via mask | Advanced — works but finicky; read the caveats |
+| **Shader morph** | Continuous liquid *refraction* deforming through the fuse | WebGL / Canvas shaders | Out of scope — pointer only, no impl below |
 
 ---
 
-## Tier A — matched-geometry morph
+## Matched-geometry morph
 
 A single conceptual element that exists in two layouts (collapsed/expanded, tab A/tab B,
 docked/floating) and *tweens* between them: position, size, and corner radius animate
@@ -198,7 +198,7 @@ function flip(el, mutate, { duration = 320, easing = 'cubic-bezier(.2,.8,.2,1)' 
 ```
 
 Wiring a "slide the glass pill between two slots" toggle (this is what `assets/demo.html`'s
-Tier A toggle does):
+matched-geometry toggle does):
 
 ```html
 <div id="slot-a"><span id="pill" class="glass glass--l2 glass-pill">Live</span></div>
@@ -236,7 +236,7 @@ Tier A toggle does):
 
 ---
 
-## Tier B — gooey merge / split (advanced)
+## Gooey merge / split (advanced)
 
 The signature Liquid Glass flourish: two separate glass blobs drift together and **fuse into one
 continuous silhouette** — like two mercury droplets touching — then split apart again. iOS gets
@@ -246,8 +246,8 @@ we fake it with an **SVG gooey filter**.
 > **⚠️ LOUD CAVEAT — this is the finicky one.** Composing an SVG `filter` with `backdrop-filter`
 > is the single hardest thing in this skill, and browser behavior is uneven. Ship it for a *hero*
 > moment (one place, deliberately), never as a default interaction. Read every caveat below before
-> committing to it. If you just need shapes to flow into each other, **Tier A is the right tool** —
-> reach for Tier B only when you specifically want the *fuse*.
+> committing to it. If you just need shapes to flow into each other, **the matched-geometry morph is
+> the right tool** — reach for the gooey merge only when you specifically want the *fuse*.
 
 ### How the gooey filter works
 
@@ -337,13 +337,13 @@ the real page backdrop; the goo only decides *where* the glass is visible.
 Tempting, but stacking an SVG `filter: url()` and a `backdrop-filter` on one element is exactly
 where browsers disagree most: order of operations is under-specified, and the filter can capture the
 backdrop result (or not) inconsistently. **Don't rely on it.** If you try it, test in every target
-browser and have a Tier-A fallback ready.
+browser and have a matched-geometry fallback ready.
 
-### Tier B caveats — read before you ship
+### Gooey merge caveats — read before you ship
 
 - **Compositing is genuinely finicky.** `filter` (the gooey mask) and `backdrop-filter` (the glass)
   are different pipeline stages, and their interaction order isn't consistently specified. Expect to
-  iterate per-browser. This is *the* reason Tier B is flagged "advanced" rather than "recipe".
+  iterate per-browser. This is *the* reason the gooey merge is flagged "advanced" rather than "recipe".
 - **Performance cost is real and stacked.** You're paying for a full-frame Gaussian blur (the goo)
   **plus** a backdrop blur (the glass) **plus** a mask composite — every animated frame. Keep it to
   one small stage, never a scroll-driven or always-on effect, and never on mobile-first hot paths.
@@ -363,12 +363,12 @@ browser and have a Tier-A fallback ready.
   `prefers-reduced-motion` by not animating the blobs together (skip straight to the merged or split
   resting state).
 
-`assets/demo.html` ships a working, deliberately-scoped Tier B toggle so you can see the fuse and
+`assets/demo.html` ships a working, deliberately-scoped gooey-merge toggle so you can see the fuse and
 read its perf cost live before adopting it.
 
 ---
 
-## Tier C — continuous liquid refraction through the merge (out of scope)
+## Shader morph — continuous liquid refraction through the merge (out of scope)
 
 Matching iOS *exactly* — where the **refraction and specular highlights deform continuously through
 the fuse**, so the lensing bends and flows as two blobs become one — is beyond what CSS plus SVG
@@ -379,7 +379,7 @@ That is a real-time graphics project — its own GPU pipeline, render loop, and 
 strategy — out of all proportion to a CSS skill, and it is **deliberately not implemented here.** If
 you truly need shader-grade continuous refraction, treat it as a separate WebGL effort (a regl/Three.js
 plane sampling a snapshot of the backdrop, displaced by a signed-distance field of the merging shapes);
-this skill stops at Tier B and points you there.
+this skill stops at the gooey merge and points you there.
 
 ---
 
@@ -387,10 +387,10 @@ this skill stops at Tier B and points you there.
 
 - `assets/glass.css` — the source of truth for the material (`.glass`, `.glass-goo`, the tokens) and
   the `#glass-goo` container rule these morphs ride on. **Don't redefine the look here.**
-- `assets/demo.html` — live Tier A (FLIP) and Tier B (gooey fuse) toggles, plus the inline
+- `assets/demo.html` — live matched-geometry (FLIP) and gooey-merge (gooey fuse) toggles, plus the inline
   `#glass-refract` / `#glass-goo` `<svg>` defs.
 - `references/react.md` — `<GlassFilter>`, `useGlassPointer`, and the typed `<GlassCard>` /
-  `<GlassButton>` / `<GlassPanel>` / `<GlassModal>` wrappers the Tier A React example composes with.
+  `<GlassButton>` / `<GlassPanel>` / `<GlassModal>` wrappers the matched-geometry React example composes with.
 - `references/levels.md` — what L1/L2/L3 add, and why a gooey L3 panel degrades to L2 in Safari/Firefox.
 - `references/fallbacks-a11y.md` — the `prefers-reduced-motion` / `prefers-reduced-transparency`
   contract every tier above honors.

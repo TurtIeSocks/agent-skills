@@ -42,9 +42,50 @@ Three things that bite people on first try:
 
 ---
 
+## Tiers in React (`references/tiers.md`)
+
+React doesn't change the tier model — it just wraps the classes. Opt into cost per-feature:
+
+- **Tier 1 (no JS):** render components with classes only. `<GlassCard level={3}>`, or the Apple ceiling via `className="glass--clear glass--apple glass--fresnel"` + one `<GlassFilter apple />` at the root. No hooks.
+- **Tier 2 (add a hook where you want it):** `useGlassPointer` (pointer specular), `useGlassLens` (corner-accurate map — the Tier-2 footnote, prefer `--apple`), `useGlassMorphTransition` (matched-geometry morph). One hook per feature, not wholesale.
+- **Tier 3 (WebGL):** a shader component (reference). See `references/tiers.md`.
+
+## Quick examples — glass on common elements
+
+```tsx
+// hero card at the Tier-1 Apple ceiling — mount <GlassFilter apple /> once at the root
+<GlassCard className="glass--clear glass--apple glass--fresnel">Now playing</GlassCard>
+
+// a frosted nav bar
+<GlassNav>
+  <a href="/">Home</a>
+  <a href="/docs">Docs</a>
+</GlassNav>
+
+// buttons — secondary + primary
+<GlassButton>Cancel</GlassButton>
+<GlassButton prominent>Save</GlassButton>
+
+// pills / badges (GlassPanel is the generic surface; `as` picks the tag)
+<GlassPanel as="span" className="glass-pill">This month</GlassPanel>
+<GlassPanel as="span" className="glass-badge">NEW</GlassPanel>
+
+// Tier-2 interactive card — specular tracks the cursor
+const ref = useGlassPointer<HTMLDivElement>();
+<GlassCard level={2} interactive ref={ref}>Hover me</GlassCard>
+
+// modal over a self-blurring scrim
+<>
+  <GlassScrim onClick={onClose} />
+  <GlassModal>Are you sure?</GlassModal>
+</>
+```
+
+---
+
 ## `<GlassFilter>` — mount the SVG defs once
 
-`backdrop-filter: url(#glass-refract)` (L3) and `filter: url(#glass-goo)` (Tier B `.glass-goo`) are SVG-filter references. The filter primitives have to exist *somewhere in the document* as `<defs>`. `<GlassFilter>` renders that hidden `<svg>`. **The refraction filter always ships; the gooey filter is opt-in** via the `goo` prop, so the default footprint stays minimal:
+`backdrop-filter: url(#glass-refract)` (L3) and `filter: url(#glass-goo)` (gooey-merge `.glass-goo`) are SVG-filter references. The filter primitives have to exist *somewhere in the document* as `<defs>`. `<GlassFilter>` renders that hidden `<svg>`. **The refraction filter always ships; the gooey filter is opt-in** via the `goo` prop, so the default footprint stays minimal:
 
 ```tsx
 <GlassFilter />
@@ -66,9 +107,10 @@ Three things that bite people on first try:
 | Prop | Type | Default | Effect |
 |---|---|---|---|
 | `id` | `string` | `'glass-refract'` | id of the L3 refraction filter (`.glass--l3` references it) |
-| `goo` | `boolean` | `false` | also emit the `#glass-goo` gooey-merge filter for Tier B `.glass-goo` |
+| `goo` | `boolean` | `false` | also emit the `#glass-goo` gooey-merge filter for the gooey-merge `.glass-goo` |
 | `gooId` | `string` | `'glass-goo'` | override the gooey filter's id |
 | `scale` | `number` | `32` | displacement strength of the L3 refraction map (`feDisplacementMap` `scale`) |
+| `apple` | `boolean` | `false` | also emit the Tier-1 ceiling filters `#glass-refract-svg` (gradient-map barrel refraction + chromatic aberration) and `#glass-specular` (rim glint) for `.glass--apple` |
 
 **Default `id` is `glass-refract`** — the same id `glass.css` references in `.glass--l3`. Don't change it unless you have a collision, because the stylesheet's `url(#glass-refract)` is hard-coded. Same for `gooId` and `.glass-goo`'s `url(#glass-goo)`. If you must namespace (multiple isolated glass roots, a micro-frontend, a Shadow DOM boundary), render with custom ids **and** override the var-free `url()` in a scoped stylesheet — but in practice, **one default `<GlassFilter />` at the app root is the boring correct answer.**
 
@@ -76,8 +118,11 @@ Three things that bite people on first try:
 // Default — matches glass.css out of the box, emits only #glass-refract:
 <GlassFilter />
 
-// Opt into the gooey merge when you actually use .glass-goo (Tier B morphing):
+// Opt into the gooey merge when you actually use .glass-goo (gooey-merge morphing):
 <GlassFilter goo />
+
+// Mount the Tier-1 apple ceiling filters when any surface uses .glass--apple:
+<GlassFilter apple />
 
 // Punchier lensing on hero panels (default scale is 32):
 <GlassFilter scale={48} />
@@ -477,7 +522,7 @@ export const GlassScrim = createGlassSurface('GlassScrim', { base: 'glass-scrim'
 | `GlassLensFilter` | component | mounts the per-element lens filter `#glass-refract-lens`; renders `null` until fed a `map`/`size` (see [Lens refraction](#lens-refraction--useglasslens--glasslensfilter)) |
 | `useGlassPointer` | hook | rAF-throttled `--mx`/`--my` writer, live reduced-motion sync |
 | `useGlassLens` | hook | measures the element + generates a size-specific lens displacement map, regenerates on resize; client-only (empty `map` on the server) |
-| `useGlassMorphTransition` | hook | spring config for framer-motion `transition`, snaps under reduced motion (see [Tier A morph](#tier-a-morph--framer-motion-layoutid)) |
+| `useGlassMorphTransition` | hook | spring config for framer-motion `transition`, snaps under reduced motion (see [matched-geometry morph](#matched-geometry-morph--framer-motion-layoutid)) |
 
 Types are exported too: `GlassLevel`, `GlassTheme`, `GlassOwnProps`, `GlassButtonOwnProps`, `GlassFilterProps`, `GlassLensOptions`, `GlassLensState`, `GlassLensFilterProps`, `PolymorphicProps`.
 
@@ -523,7 +568,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }
 ```
-Mount `<GlassFilter>` once in the root layout and every page/route reuses the same defs. Add `goo` here if any route uses the `.glass-goo` Tier B merge.
+Mount `<GlassFilter>` once in the root layout and every page/route reuses the same defs. Add `goo` here if any route uses the `.glass-goo` gooey merge.
 
 ### Tailwind v4 interop
 
@@ -531,7 +576,7 @@ If you drive glass through the Tailwind `@utility glass` instead of (or alongsid
 
 ---
 
-## Tier A morph — `framer-motion` `layoutId`
+## Matched-geometry morph — `framer-motion` `layoutId`
 
 The web analog of iOS `glassEffectID` + `@Namespace`: a glass element that **flows** between two positions/sizes instead of cutting. In React the clean tool is `framer-motion`'s shared-layout animation — give two glass elements the same `layoutId` and Framer tweens one into the other, dragging the glass material along for the ride.
 
@@ -579,7 +624,7 @@ Key points:
 - Respect motion preferences: use `useGlassMorphTransition()` as above (it snaps under reduced motion), or wrap morphing regions in framer-motion's `MotionConfig reducedMotion="user"`. This mirrors the `useGlassPointer` reduced-motion guard.
 - The **vanilla FLIP** equivalent (no framer-motion) is in [`morphing.md`](./morphing.md) — use it when you don't want the dependency.
 
-For the gooey **Tier B** merge (`.glass-goo` + `#glass-goo`), see [`morphing.md`](./morphing.md); the React side is just rendering `.glass-goo` containers and ensuring `<GlassFilter goo>` mounted `#glass-goo`.
+For the **gooey merge** (`.glass-goo` + `#glass-goo`), see [`morphing.md`](./morphing.md); the React side is just rendering `.glass-goo` containers and ensuring `<GlassFilter goo>` mounted `#glass-goo`.
 
 ---
 
@@ -602,6 +647,6 @@ So if a design review says "make the glass warmer" or "thicker rim," you edit `g
 - [`../assets/glass.css`](../assets/glass.css) — the single source of truth for the material.
 - [`levels.md`](./levels.md) — what `level={1|2|3}` actually switches on, the `#glass-refract` filter, browser support.
 - [`tailwind-v4.md`](./tailwind-v4.md) — `@utility glass` + the vanilla → utility class map for `className` composition.
-- [`morphing.md`](./morphing.md) — Tier A FLIP (vanilla) and Tier B gooey merge in depth.
+- [`morphing.md`](./morphing.md) — matched-geometry FLIP (vanilla) and gooey merge in depth.
 - [`fallbacks-a11y.md`](./fallbacks-a11y.md) — `prefers-reduced-*`, contrast-on-glass, perf budget ("don't glass everything").
 - [`../SKILL.md`](../SKILL.md) — the hub: mental model, token schema, decision flowchart.

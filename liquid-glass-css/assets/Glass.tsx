@@ -217,19 +217,26 @@ export function useGlassPointer<T extends HTMLElement = HTMLElement>(): Ref<T> {
 /* ------------------------------------------------------------------ *\
    GlassFilter — mounts the SVG filter defs once
    Visually hidden; provides `#glass-refract` (L3 refraction) and, when
-   `goo` is set, `#glass-goo` (Tier B gooey merge). The id is configurable
+   `goo` is set, `#glass-goo` (the gooey merge). The id is configurable
    so multiple roots / micro-frontends can avoid collisions.
 \* ------------------------------------------------------------------ */
 
 export interface GlassFilterProps {
   /** Filter id used by `.glass--l3` (`backdrop-filter: … url(#id)`). Default `glass-refract`. */
   id?: string;
-  /** Also emit the `#glass-goo` gooey-merge filter for Tier B `.glass-goo`. */
+  /** Also emit the `#glass-goo` gooey-merge filter for the gooey-merge `.glass-goo`. */
   goo?: boolean;
   /** Override the gooey filter id (default `glass-goo`). */
   gooId?: string;
   /** Displacement strength for the refraction map (L3). Default 32. */
   scale?: number;
+  /**
+   * Also emit the `.glass--apple` Tier-1 ceiling filters: `#glass-refract-svg`
+   * (no-JS gradient-map barrel refraction + chromatic aberration) and
+   * `#glass-specular` (feSpecularLighting rim glint). Mount once if any surface
+   * uses `.glass--apple`.
+   */
+  apple?: boolean;
 }
 
 const HIDDEN_SVG_STYLE: CSSProperties = {
@@ -246,13 +253,14 @@ const HIDDEN_SVG_STYLE: CSSProperties = {
  * actual displacement/blur is applied in `glass.css` via `url(#…)`.
  *
  * @example
- * <GlassFilter id="glass-refract" goo />
+ * <GlassFilter goo apple />   // mount L3 refraction + gooey + the apple ceiling
  */
 export function GlassFilter({
   id = 'glass-refract',
   goo = false,
   gooId = 'glass-goo',
   scale = 32,
+  apple = false,
 }: GlassFilterProps): ReactElement {
   return (
     <svg aria-hidden="true" focusable="false" style={HIDDEN_SVG_STYLE}>
@@ -275,7 +283,7 @@ export function GlassFilter({
           />
         </filter>
 
-        {/* Tier B gooey merge: blur then crank alpha so overlapping blobs fuse. */}
+        {/* Gooey merge: blur then crank alpha so overlapping blobs fuse. */}
         {goo ? (
           <filter id={gooId}>
             <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
@@ -287,6 +295,56 @@ export function GlassFilter({
             />
             <feComposite in="SourceGraphic" in2="goo" operator="atop" />
           </filter>
+        ) : null}
+
+        {/* .glass--apple ceiling: gradient-map barrel refraction + chromatic
+            aberration, and a feSpecularLighting rim glint. */}
+        {apple ? (
+          <>
+            <filter
+              id="glass-refract-svg"
+              x="-15%"
+              y="-15%"
+              width="130%"
+              height="130%"
+              colorInterpolationFilters="sRGB"
+            >
+              <feImage
+                result="map"
+                preserveAspectRatio="none"
+                href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cdefs%3E%3ClinearGradient id='x' x1='0' x2='1' y1='0' y2='0'%3E%3Cstop offset='0%25' stop-color='rgb(0,0,0)'/%3E%3Cstop offset='14%25' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='86%25' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='100%25' stop-color='rgb(255,0,0)'/%3E%3C/linearGradient%3E%3ClinearGradient id='y' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0%25' stop-color='rgb(0,0,0)'/%3E%3Cstop offset='14%25' stop-color='rgb(0,128,0)'/%3E%3Cstop offset='86%25' stop-color='rgb(0,128,0)'/%3E%3Cstop offset='100%25' stop-color='rgb(0,255,0)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23x)'/%3E%3Crect width='100' height='100' fill='url(%23y)' style='mix-blend-mode:screen'/%3E%3C/svg%3E"
+              />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="map"
+                scale={22}
+                xChannelSelector="R"
+                yChannelSelector="G"
+                result="disp"
+              />
+              <feColorMatrix in="disp" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="cr" />
+              <feOffset in="cr" dx={2.8} dy={0} result="cr2" />
+              <feColorMatrix in="disp" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="cg" />
+              <feColorMatrix in="disp" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="cb" />
+              <feOffset in="cb" dx={-2.8} dy={0} result="cb2" />
+              <feBlend in="cr2" in2="cg" mode="screen" result="crg" />
+              <feBlend in="crg" in2="cb2" mode="screen" />
+            </filter>
+            <filter id="glass-specular" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation={5} result="bump" />
+              <feSpecularLighting
+                in="bump"
+                surfaceScale={12}
+                specularConstant={1.3}
+                specularExponent={18}
+                lightingColor="#ffffff"
+                result="spec"
+              >
+                <fePointLight x={120} y={-30} z={120} />
+              </feSpecularLighting>
+              <feComposite in="spec" in2="SourceAlpha" operator="in" />
+            </filter>
+          </>
         ) : null}
       </defs>
     </svg>
@@ -569,7 +627,7 @@ export const GlassButton = forwardRef(GlassButtonInner) as <
 ) => ReactElement;
 
 /* ------------------------------------------------------------------ *\
-   Tier A morph example — framer-motion `layoutId` (the web analog of iOS
+   Matched-geometry morph example — framer-motion `layoutId` (the web analog of iOS
    `glassEffectID` + `@Namespace`). framer-motion is an OPTIONAL peer dep:
    the import below is COMMENTED so this file compiles standalone with no
    extra dependency. Uncomment it (and `npm i framer-motion`) to use the

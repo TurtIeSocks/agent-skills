@@ -13,7 +13,7 @@
     switcher. Nothing here re-implements the glass look.
 
     The inline <svg> at the top of <body> mounts the filter defs that glass.css
-    references by id: #glass-refract (L3 lensing) and #glass-goo (Tier B merge).
+    references by id: #glass-refract (L3 lensing) and #glass-goo (gooey merge).
     They must exist once per document or those features silently degrade.
 
     Opens standalone: just double-click it. (glass.css sits beside it.)
@@ -256,7 +256,7 @@
        SVG FILTER DEFS — mounted ONCE. glass.css references these by id.
        Hidden (0×0, aria-hidden) but must remain in the DOM for the filters
        to resolve. #glass-refract = L3 backdrop displacement (lensing).
-       #glass-goo = Tier B gooey merge (blur -> alpha-crank color matrix).
+       #glass-goo = gooey merge (blur -> alpha-crank color matrix).
        ===================================================================== -->
   <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
     <defs>
@@ -279,7 +279,7 @@
                            xChannelSelector="R" yChannelSelector="G" />
       </filter>
 
-      <!-- Tier B gooey merge: heavy blur, then crank alpha to a hard step so
+      <!-- Gooey merge: heavy blur, then crank alpha to a hard step so
            overlapping blurred shapes snap into a single fused silhouette. -->
       <filter id="glass-goo">
         <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur"/>
@@ -480,16 +480,16 @@
     </section>
 
     <!-- ================================================================= -->
-    <!-- MORPHING — Tier A (FLIP matched-geometry) + Tier B (gooey merge). -->
+    <!-- MORPHING — matched-geometry (FLIP) + gooey merge. -->
     <!-- ================================================================= -->
     <section>
-      <h2>Morphing — Tier A (FLIP) · Tier B (gooey merge)</h2>
+      <h2>Morphing — matched-geometry (FLIP) · gooey merge</h2>
       <div class="grid-3" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
 
-        <!-- TIER A: one glass pill flows between two slots, growing as it lands
+        <!-- MATCHED-GEOMETRY: one glass pill flows between two slots, growing as it lands
              in the second. Pure FLIP — measure, invert, play — no framework. -->
         <div class="stack">
-          <div class="muted">Tier A — matched geometry (FLIP)</div>
+          <div class="muted">Matched-geometry morph (FLIP)</div>
           <div class="morph-track" id="morphTrack">
             <div class="morph-slot" id="slotA">
               <button id="morphPill" class="glass glass--l2 glass-button glass-pill" type="button">
@@ -501,9 +501,9 @@
           <button id="morphBtn" class="glass glass-button" type="button">Toggle position + size</button>
         </div>
 
-        <!-- TIER B: two gooey blobs in a .glass-goo field fuse on toggle. -->
+        <!-- GOOEY MERGE: two gooey blobs in a .glass-goo field fuse on toggle. -->
         <div class="stack">
-          <div class="muted">Tier B — gooey merge (#glass-goo)</div>
+          <div class="muted">Gooey merge (#glass-goo)</div>
           <div class="goo-stage">
             <div class="glass-goo goo-field" id="gooField">
               <span class="goo-blob left"></span>
@@ -516,7 +516,7 @@
       </div>
       <p class="legend" style="margin-top:14px">
         Morphing animates the <em>shape</em> the glass rides on; the material is
-        unchanged. Tier B composes an SVG gooey filter — finicky and GPU-costly,
+        unchanged. The gooey merge composes an SVG gooey filter — finicky and GPU-costly,
         so it ships as an advanced, caveated effect.
       </p>
     </section>
@@ -609,7 +609,7 @@
     }
 
     /* -------------------------------------------------------------------
-       TIER A — FLIP morph. Move the glass pill DOM node between two slots,
+       MATCHED-GEOMETRY — FLIP morph. Move the glass pill DOM node between two slots,
        then animate from its previous box to its new one. First-Last-Invert-
        Play: read first rect, move it (last rect), invert with a transform,
        then play back to identity. No transition declared in CSS — the Web
@@ -651,7 +651,7 @@
     });
 
     /* -------------------------------------------------------------------
-       TIER B — gooey merge. Just toggle a class on the filtered field; the
+       GOOEY MERGE. Just toggle a class on the filtered field; the
        blobs slide together via CSS transform and #glass-goo fuses them.
        ------------------------------------------------------------------- */
     const gooField = document.getElementById('gooField');

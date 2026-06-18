@@ -111,14 +111,14 @@
     {
       "id": 8,
       "prompt": "How do I make two glass blobs merge into one another like the iOS Liquid Glass mercury effect on the web?",
-      "expected_output": "Covers Tier A and Tier B morphing: Tier A matched-geometry morph (framer-motion layoutId shown by example as the glassEffectID analog, or a vanilla FLIP helper) for a glass element flowing between states; Tier B gooey merge via an SVG `#glass-goo` filter (feGaussianBlur -> feColorMatrix alpha-crank) on a `.glass-goo` container so overlapping shapes snap into one silhouette, with loud caveats about composing the gooey filter with backdrop-filter and perf. Notes Tier C (continuous liquid refraction through the merge) needs WebGL and is out of scope.",
+      "expected_output": "Covers matched-geometry and gooey-merge morphing: the matched-geometry morph (framer-motion layoutId shown by example as the glassEffectID analog, or a vanilla FLIP helper) for a glass element flowing between states; the gooey merge via an SVG `#glass-goo` filter (feGaussianBlur -> feColorMatrix alpha-crank) on a `.glass-goo` container so overlapping shapes snap into one silhouette, with loud caveats about composing the gooey filter with backdrop-filter and perf. Notes the shader morph (continuous liquid refraction through the merge) needs WebGL and is out of scope.",
       "files": ["liquid-glass-css/references/morphing.md", "liquid-glass-css/assets/glass.css"],
       "assertions": [
         {"text": "Provides the gooey-merge container class", "check": "grep 'glass-goo'"},
         {"text": "Uses feGaussianBlur in the gooey filter", "check": "grep 'feGaussianBlur'"},
         {"text": "Uses feColorMatrix to crank the merged alpha", "check": "grep 'feColorMatrix'"},
         {"text": "Documents the matched-geometry morph (layoutId or FLIP)", "check": "grep -i 'layoutId\\|FLIP'"},
-        {"text": "Flags Tier C continuous refraction as WebGL/out-of-scope", "check": "grep -i 'webgl'"}
+        {"text": "Flags the shader morph (continuous refraction) as WebGL/out-of-scope", "check": "grep -i 'webgl'"}
       ]
     }
   ]

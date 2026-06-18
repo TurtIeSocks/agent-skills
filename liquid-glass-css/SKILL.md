@@ -60,6 +60,18 @@ Layer 1 alone is what beginners ship. Layers 4–5 are what make it read as *gla
 
 ---
 
+## The three tiers — CSS → JS → WebGL
+
+Fidelity (`L1/L2/L3`) is one axis; **dependency** is the other. Everything in this skill is **Tier 1 (pure CSS/SVG)** unless noted — drop it into a static page, no JS, no build. **Tier 2** adds JavaScript for what CSS can't do (react to pointer/gyro, sample the backdrop). **Tier 3** is a WebGL shader (cross-browser, real-time, native-grade — but a renderer). Pick the *lowest* tier that gets the look: fidelity is **not** monotonic with tier — the Tier-1 `.glass--apple` beats a bare Tier-2 glint. Full matrix + feature→tier map in `references/tiers.md`.
+
+| Tier | Dependency | Highlights |
+|---|---|---|
+| **1** | pure CSS/SVG | L1–L3, `.glass--clear`, `.glass--fresnel`, `.glass--apple` (chromatic + specular ceiling), components, gooey merge |
+| **2** | + JavaScript | `.glass--interactive` pointer specular, `useGlassLens` map, matched-geometry morph, *(planned)* tilt + adaptive vibrancy |
+| **3** | + WebGL | per-frame shader refraction (reference) |
+
+---
+
 ## Token schema
 
 Every layer is a CSS custom property on `:root`. **Presets** change the *values*; **levels** change *how many layers are on*; **components** reuse the *same tokens* with different geometry. The channel trick — store the tint as raw `R G B`, then apply `/ alpha` per use — lets one tint value drive every translucent surface.
@@ -188,12 +200,14 @@ ALWAYS, regardless of level:
 |---|---|---|---|---|
 | **L1** | `.glass` | 1,2,3,6 | `backdrop-filter` + `@supports` | universal baseline, tiny chips |
 | **L2** | `.glass .glass--l2` | + 4,5 | pure CSS gradients + insets + `::before` | default for any visible card/panel |
-| **L3** | `.glass .glass--l2 .glass--l3` | + refracted 1 | SVG `feDisplacementMap` (`#glass-refract`) | hero panels only; degrades to L2 off-Chromium |
-| **L3 · lens** | `.glass .glass--l2 .glass--lens` | + refracted 1 | radial displacement map (`#glass-refract-lens`) | *alternative* to `.glass--l3` — iOS-accurate edge-lensing, but size-specific (needs a generated map) |
+| **L3** | `.glass .glass--l2 .glass--l3` | + refracted 1 | SVG `feTurbulence` displacement (`#glass-refract`) | hero panels only; degrades to L2 off-Chromium |
+| **L3 · apple** | `.glass .glass--clear .glass--apple .glass--fresnel` | + chromatic + specular | gradient map + chromatic aberration + `feSpecularLighting` | **Tier-1 refraction ceiling** — most Apple-accurate *without JS*; one hero element, heavy, Chromium-only |
 
-`.glass--lens` is a radial-displacement-map variant of L3 refraction: precise rim edge-lensing (more iOS-accurate than the default turbulent frost) instead of `feTurbulence`, at the cost of a per-element generated map. See `references/levels.md` and `assets/displacement-map.js` (`makeDisplacementMap`).
+**Apple-accurate recipe** (vs 2020-era glassmorphism, which over-blurs): **less** blur, more refraction, a bright bezel, over **rich** content (Apple glass reflects the wallpaper — a flat backdrop hides it). The **Tier-1 ceiling** is `.glass--clear .glass--apple .glass--fresnel`: `--clear` thins the frost so light bends instead of scattering (Apple's "clear" variant — it needs a dimming layer under it for legibility); `--apple` adds no-JS gradient-map barrel refraction + real chromatic aberration + a `feSpecularLighting` glint; `--fresnel` adds the bright rim. Two SVG filters, Chromium-only, heavy — one hero element. Full breakdown in `references/levels.md` (*Pure CSS/SVG ceiling*); live in `assets/demo.html`.
 
-**Apple-accurate recipe** (vs 2020-era glassmorphism, which over-blurs): use **less** blur, more refraction, and a bright bezel — `.glass--clear` (thins frost so light bends instead of scattering, Apple's "clear" variant) + a refraction level (`.glass--l3`/`.glass--lens`) + `.glass--fresnel` (the bright rim; its cool+warm insets double as a cheap chromatic fringe), over **rich** content (Apple glass reflects the wallpaper — a flat backdrop hides it). The clear variant needs a dimming layer under it for legibility. For the **pure-CSS/SVG ceiling**, `.glass--clear .glass--apple .glass--fresnel` stacks no-JS gradient-map barrel refraction + real chromatic aberration + a `feSpecularLighting` glint (two SVG filters; Chromium-only; reserve for one hero element — it's heavy). Adaptive vibrancy (lighten-over-dark) is the one trait pure CSS can't do — it needs JS to sample the backdrop. See the "Apple Liquid Glass" section in `assets/demo.html` and `references/levels.md` (*Pure CSS/SVG ceiling*). For the native iOS/SwiftUI material itself, see the `liquid-glass-design` skill.
+> **Tier-2 footnote — `.glass--lens`.** A JS-generated (canvas) corner-accurate SDF displacement map, via `useGlassLens` / `makeDisplacementMap`. Only reach for it when `.glass--apple`'s rectangular barrel isn't accurate enough at the corners — otherwise prefer the Tier-1 `--apple`. See `references/levels.md` and `references/tiers.md`.
+
+**Adaptive vibrancy** (glass lightens over dark content / darkens over light) is the one trait pure CSS can't do — it needs JS to sample the backdrop (Tier 2). For the native iOS/SwiftUI material itself, see the `liquid-glass-design` skill.
 
 ## Quick reference — components
 
@@ -209,7 +223,7 @@ Same tokens, different geometry + state. Each maps to an iOS-skill twin. Full CS
 | `.glass-badge` | tiny status capsule | — | `$12.4K`, "Total Pending" chip |
 | `.glass-modal` + `.glass-scrim` | centered panel + blurred backdrop | sheet | scrim carries its own blur; fixed-position |
 | `.glass--interactive` | opt-in pointer specular | `.interactive()` | reads `--mx/--my`; costs a little JS |
-| `.glass-goo` | gooey-merge container (Tier B) | matched-geometry merge | uses `#glass-goo`; advanced, see `morphing.md` |
+| `.glass-goo` | gooey-merge container | gooey morph | uses `#glass-goo`; advanced, see `morphing.md` |
 
 ## Quick reference — presets
 
@@ -229,11 +243,12 @@ Load only what the task needs — these are heavy.
 
 | If you need… | Read |
 |---|---|
-| L1/L2/L3 in full, the `#glass-refract` filter, gradient-rim technique, browser-support matrix, fallback chain | `references/levels.md` |
+| The CSS → JS → WebGL **tier model**, the Level × Tier axes, the feature→tier map, which tier to pick | `references/tiers.md` |
+| L1/L2/L3 in full, the `#glass-refract` filter, the `.glass--apple` pure-CSS/SVG ceiling, gradient-rim, browser-support matrix, fallback chain | `references/levels.md` |
 | Full CSS for all 5 components + every interaction state, modal + scrim + fixed-position note, prominent button | `references/components.md` |
 | Tailwind v4: `@theme` tokens, `@utility glass`, vanilla→utility class-mapping table, L3 arbitrary-value note | `references/tailwind-v4.md` |
 | React: `<GlassCard>/<GlassButton>/<GlassPanel>/<GlassModal>`, `useGlassPointer`, `<GlassFilter>`, SSR/Next.js notes | `references/react.md` |
-| Morphing: Tier A matched-geometry (framer-motion `layoutId` / vanilla FLIP), Tier B gooey merge (`#glass-goo`), Tier C pointer | `references/morphing.md` |
+| Morphing: matched-geometry (framer-motion `layoutId` / vanilla FLIP), gooey merge (`#glass-goo`), shader morph | `references/morphing.md` |
 | `@supports` patterns, `prefers-reduced-transparency`/`-motion`/`-contrast`, contrast-on-glass (WCAG), perf, "don't glass everything" | `references/fallbacks-a11y.md` |
 
 Copy-paste artifacts in `assets/`:

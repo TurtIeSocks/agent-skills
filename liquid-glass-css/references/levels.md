@@ -204,6 +204,8 @@ The `x/y/width/height="-20%/140%"` on the `<filter>` enlarges the filter region 
 
 ### Refraction style — turbulent vs radial lens
 
+> **Tier note.** `.glass--lens` is a **Tier-2 (JS) footnote**: it needs `useGlassLens` / `makeDisplacementMap` (canvas) to build its map. For nearly every case prefer the **Tier-1 [`.glass--apple`](#pure-csssvg-ceiling--chromatic-refraction--specular-glint-glass--apple)** ceiling below — barrel refraction **plus** chromatic aberration **plus** a specular glint, with **no JS** and no per-element map. Reach for `--lens` only when you specifically need a corner-accurate (rounded-corner-aware) SDF map that apple's rectangular barrel doesn't give. See `references/tiers.md`.
+
 The `#glass-refract` filter above is the **default** L3 refraction, and `feTurbulence` is what gives it its character: random, smooth noise warps the backdrop *uniformly* across the whole pane. That reads as **organic frosted glass** — textured, rippled, alive — and it ships out of the box with zero per-element setup (one filter, any size, any number of panes). But it is *not* a lens: a real lens (and the iOS "Liquid Glass" look) bends the background hardest at the **rim** and leaves the **centre** almost flat. The `.glass--lens` variant gives you exactly that — **precise edge-lensing** — at the cost of a little more wiring, because the map it uses is size-specific.
 
 Pick by the look you want:
@@ -425,7 +427,7 @@ What actually ships, and what each level needs (as of mid-2026, current evergree
 | `linear-gradient` body + `inset` `box-shadow` + pseudo sheen | ✅ | ✅ | ✅ | **L2** (no caveats) |
 | `@property` (typed custom props) | ✅ since 85 | ✅ since 16.4 | ✅ since 128 | `.glass--interactive` (the `--mx/--my` easing) |
 | `backdrop-filter: url(#filter)` | ✅ (Chromium honours SVG filters in `backdrop-filter`) | ⚠️ **ignores the `url()`** — applies the blur/saturate, silently drops the displacement | ⚠️ **ignores the `url()`** likewise | **L3** refraction |
-| SVG `feTurbulence` + `feDisplacementMap` (as a normal `filter:`) | ✅ | ✅ | ✅ | `#glass-goo` Tier B, and any *non-backdrop* use |
+| SVG `feTurbulence` + `feDisplacementMap` (as a normal `filter:`) | ✅ | ✅ | ✅ | `#glass-goo` gooey merge, and any *non-backdrop* use |
 | `@supports (...)` feature query | ✅ | ✅ | ✅ | the whole fallback-first scheme |
 | `prefers-reduced-motion` / `-reduced-transparency` / `prefers-contrast` | ✅ | ✅ (`reduced-transparency` maps to "Reduce Transparency") | ✅ (`reduced-transparency` support is partial) | a11y guards |
 
@@ -434,7 +436,7 @@ Two rows carry the only real gotchas:
 - **`backdrop-filter: url()` is Chromium-leaning.** Chrome/Edge composite the SVG displacement against the live backdrop. Safari and Firefox parse the value, apply the `blur(3px) saturate(180%)` part, and **silently ignore the `url(#glass-refract)`** — there is no error, the pane just doesn't warp. This is *by design* in this skill (see degradation below), not a bug to fix.
 - **Always-prefix `backdrop-filter`.** Even though current Safari un-prefixes, the prefixed property is still required for the long tail of iOS versions in the wild, and writing both costs nothing.
 
-> Note the asymmetry: SVG filters (`feDisplacementMap`, `feGaussianBlur`) work *everywhere* when applied via the normal `filter:` property — that's why the Tier B gooey merge (`#glass-goo`, used as `filter: url(#glass-goo)`) is broadly supported, while L3 refraction (the *same kind* of filter via `backdrop-filter: url()`) is Chromium-only. The difference is `backdrop-filter`-plus-`url()`, not SVG filters themselves.
+> Note the asymmetry: SVG filters (`feDisplacementMap`, `feGaussianBlur`) work *everywhere* when applied via the normal `filter:` property — that's why the gooey merge (`#glass-goo`, used as `filter: url(#glass-goo)`) is broadly supported, while L3 refraction (the *same kind* of filter via `backdrop-filter: url()`) is Chromium-only. The difference is `backdrop-filter`-plus-`url()`, not SVG filters themselves.
 
 ---
 
@@ -503,4 +505,4 @@ So the practical rule is: **always author L3 as `glass glass--l2 glass--l3`.** T
 - [`tailwind-v4.md`](./tailwind-v4.md) — the `@theme`/`@utility` mirror of L1, plus the `[backdrop-filter:…url(#glass-refract)]` arbitrary-value note for L3 in Tailwind.
 - [`react.md`](./react.md) — `<GlassFilter id="glass-refract" />` mounts the L3 displacement defs once, SSR-safe with a stable `seed`.
 - [`fallbacks-a11y.md`](./fallbacks-a11y.md) — the `@supports` patterns and the `prefers-reduced-*` / `prefers-contrast` solid fallbacks that sit underneath every level.
-- [`morphing.md`](./morphing.md) — Tier B's `#glass-goo` filter (the same `feGaussianBlur`/`feColorMatrix` family, applied via a normal `filter:` so it works cross-browser).
+- [`morphing.md`](./morphing.md) — the gooey merge's `#glass-goo` filter (the same `feGaussianBlur`/`feColorMatrix` family, applied via a normal `filter:` so it works cross-browser).
