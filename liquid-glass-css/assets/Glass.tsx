@@ -40,6 +40,7 @@ import {
 // browser too). In a TS project, allowJs (or a bundler's default JS resolution)
 // makes this import resolve; the map is generated client-side only.
 import { makeDisplacementMap } from './displacement-map.js';
+import { applyVibrancy } from './glass-vibrancy.js';
 
 /* ------------------------------------------------------------------ *\
    Shared types
@@ -210,6 +211,172 @@ export function useGlassPointer<T extends HTMLElement = HTMLElement>(): Ref<T> {
       reduceMotion.removeEventListener('change', sync);
     };
   }, []);
+
+  return ref;
+}
+
+/* ------------------------------------------------------------------ *\
+   useGlassTilt — Tier 2: steer the feSpecularLighting glint from the real
+   world. Pointer (desktop) and DeviceOrientation gyroscope (mobile) move the
+   `#glass-specular` fePointLight, so the rim glint tracks the cursor / device
+   tilt — the "physical pane" feel CSS can't produce on its own.
+\* ------------------------------------------------------------------ */
+
+export interface GlassTiltOptions {
+  /** id of the feSpecularLighting filter to steer (default `glass-specular`). */
+  lightId?: string;
+  /** Also use DeviceOrientation (gyroscope) where available. Default true. */
+  gyro?: boolean;
+}
+
+/**
+ * Attach the returned ref to a `.glass--apple` element. Pointer movement over it
+ * (and device tilt, if `gyro`) repositions the `#glass-specular` fePointLight so
+ * the glint follows — the JS upgrade over the static Tier-1 glint.
+ *
+ * Honors `prefers-reduced-motion` (binds nothing). The specular filter is a
+ * shared def, so this steers ONE glint — intended for a single hero surface. On
+ * iOS, DeviceOrientation needs a user-gesture permission grant
+ * (`DeviceOrientationEvent.requestPermission()`); request it yourself, then this
+ * hook picks up the events.
+ *
+ * @example
+ * const ref = useGlassTilt<HTMLDivElement>();
+ * <GlassCard ref={ref} className="glass--clear glass--apple glass--fresnel">…</GlassCard>
+ */
+export function useGlassTilt<T extends HTMLElement = HTMLElement>(
+  options: GlassTiltOptions = {},
+): Ref<T> {
+  const { lightId = 'glass-specular', gyro = true } = options;
+  const ref = useRef<T>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (el == null || typeof window === 'undefined') return;
+    // CSS.escape guards against a caller-supplied id with special chars.
+    const light = document.querySelector<SVGElement>(`#${CSS.escape(lightId)} fePointLight`);
+    if (light == null) return;
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let frame = 0;
+    const place = (px: number, py: number): void => {
+      if (frame !== 0) return; // one write per frame
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        light.setAttribute('x', String(Math.round(px)));
+        light.setAttribute('y', String(Math.round(py)));
+      });
+    };
+
+    const onPointer = (e: PointerEvent): void => {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0) return;
+      place(e.clientX - r.left, e.clientY - r.top);
+    };
+
+    // gamma = left/right tilt; beta = front/back. ~45° held as neutral.
+    const onOrient = (e: DeviceOrientationEvent): void => {
+      const r = el.getBoundingClientRect();
+      const gx = (e.gamma ?? 0) / 45;
+      const gy = ((e.beta ?? 0) - 45) / 45;
+      place(r.width * (0.5 + gx * 0.5), r.height * (0.5 + gy * 0.5) - 30);
+    };
+
+    const attach = (): void => {
+      el.addEventListener('pointermove', onPointer);
+      if (gyro && typeof window.DeviceOrientationEvent !== 'undefined') {
+        window.addEventListener('deviceorientation', onOrient);
+      }
+    };
+    const detach = (): void => {
+      el.removeEventListener('pointermove', onPointer);
+      window.removeEventListener('deviceorientation', onOrient);
+      if (frame !== 0) window.cancelAnimationFrame(frame);
+      frame = 0;
+    };
+
+    // Honor the live preference: bind only when motion is allowed, re-evaluate
+    // if the user toggles the OS setting while mounted.
+    const sync = (): void => {
+      detach();
+      if (!reduceMotion.matches) attach();
+    };
+    sync();
+    reduceMotion.addEventListener('change', sync);
+    return () => {
+      detach();
+      reduceMotion.removeEventListener('change', sync);
+    };
+  }, [lightId, gyro]);
+
+  return ref;
+}
+
+/* ------------------------------------------------------------------ *\
+   useGlassVibrancy — Tier 2: adapt the glass to the backdrop it sits over.
+   Samples a DRAWABLE backdrop (img/canvas/video) under the element and retunes
+   `--glass-tint` / `--glass-tint-opacity` / text colour so the glass stays
+   legible — light glass over dark content, dark glass over light. The one
+   "content-aware" Apple trait CSS can't do alone (it can't read the backdrop).
+\* ------------------------------------------------------------------ */
+
+/** A ref (or live element) to the drawable backdrop to sample. */
+export type GlassVibrancySource =
+  | { current: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | null }
+  | HTMLImageElement
+  | HTMLCanvasElement
+  | HTMLVideoElement
+  | null;
+
+/**
+ * Attach the returned ref to a glass element; pass the drawable backdrop behind
+ * it. The hook samples the backdrop luminance under the element and sets the
+ * glass tokens for legibility, recomputing on scroll/resize (rAF-throttled).
+ *
+ * The backdrop MUST be drawable (img/canvas/video) and same-origin (a tainted
+ * canvas can't be read). It CANNOT sample arbitrary live DOM — snapshot DOM to a
+ * canvas yourself, or use the Tier-3 WebGL path. See `references/tiers.md`.
+ *
+ * @example
+ * const bg = useRef<HTMLImageElement>(null);
+ * const ref = useGlassVibrancy<HTMLDivElement>(bg);
+ * return (<><img ref={bg} src="/wallpaper.jpg" /><GlassCard ref={ref}>…</GlassCard></>);
+ */
+export function useGlassVibrancy<T extends HTMLElement = HTMLElement>(
+  source: GlassVibrancySource,
+): Ref<T> {
+  const ref = useRef<T>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    const src =
+      source && 'current' in source ? source.current : (source as HTMLElement | null);
+    if (el == null || src == null || typeof window === 'undefined') return;
+
+    let frame = 0;
+    const update = (): void => applyVibrancy(el, src as HTMLImageElement);
+    const schedule = (): void => {
+      if (frame !== 0) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        update();
+      });
+    };
+
+    update();
+    // images may not be decoded yet on first paint
+    const img = src as HTMLImageElement;
+    if (img.complete === false) img.addEventListener('load', update, { once: true });
+
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      img.removeEventListener('load', update); // unmount-before-load case
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      if (frame !== 0) window.cancelAnimationFrame(frame);
+    };
+  }, [source]);
 
   return ref;
 }

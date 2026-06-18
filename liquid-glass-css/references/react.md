@@ -47,7 +47,17 @@ Three things that bite people on first try:
 React doesn't change the tier model — it just wraps the classes. Opt into cost per-feature:
 
 - **Tier 1 (no JS):** render components with classes only. `<GlassCard level={3}>`, or the Apple ceiling via `className="glass--clear glass--apple glass--fresnel"` + one `<GlassFilter apple />` at the root. No hooks.
-- **Tier 2 (add a hook where you want it):** `useGlassPointer` (pointer specular), `useGlassLens` (corner-accurate map — the Tier-2 footnote, prefer `--apple`), `useGlassMorphTransition` (matched-geometry morph). One hook per feature, not wholesale.
+- **Tier 2 (add a hook where you want it):** `useGlassPointer` (pointer specular), `useGlassTilt` (pointer/gyro steers the apple glint), `useGlassVibrancy` (adapt tint to a drawable backdrop), `useGlassLens` (corner-accurate map — the footnote, prefer `--apple`), `useGlassMorphTransition` (matched-geometry morph). One hook per feature, not wholesale.
+
+```tsx
+// Tier-2 examples
+const tilt = useGlassTilt<HTMLDivElement>();              // glint follows cursor / device tilt
+<GlassCard ref={tilt} className="glass--clear glass--apple glass--fresnel">…</GlassCard>
+
+const bg = useRef<HTMLImageElement>(null);
+const vib = useGlassVibrancy<HTMLDivElement>(bg);         // tint adapts to the backdrop image
+<><img ref={bg} src="/wallpaper.jpg" /><GlassCard ref={vib} level={2}>…</GlassCard></>
+```
 - **Tier 3 (WebGL):** a shader component (reference). See `references/tiers.md`.
 
 ## Quick examples — glass on common elements
@@ -521,10 +531,12 @@ export const GlassScrim = createGlassSurface('GlassScrim', { base: 'glass-scrim'
 | `GlassFilter` | component | mounts SVG `<defs>`; `#glass-refract` always, `#glass-goo` via `goo` |
 | `GlassLensFilter` | component | mounts the per-element lens filter `#glass-refract-lens`; renders `null` until fed a `map`/`size` (see [Lens refraction](#lens-refraction--useglasslens--glasslensfilter)) |
 | `useGlassPointer` | hook | rAF-throttled `--mx`/`--my` writer, live reduced-motion sync |
+| `useGlassTilt` | hook | Tier 2 — pointer + `DeviceOrientation` gyro steer the `#glass-specular` `fePointLight`; reduced-motion guarded |
+| `useGlassVibrancy` | hook | Tier 2 — samples a drawable backdrop's luminance under the element, retunes tint/text for legibility (needs `glass-vibrancy.js`) |
 | `useGlassLens` | hook | measures the element + generates a size-specific lens displacement map, regenerates on resize; client-only (empty `map` on the server) |
 | `useGlassMorphTransition` | hook | spring config for framer-motion `transition`, snaps under reduced motion (see [matched-geometry morph](#matched-geometry-morph--framer-motion-layoutid)) |
 
-Types are exported too: `GlassLevel`, `GlassTheme`, `GlassOwnProps`, `GlassButtonOwnProps`, `GlassFilterProps`, `GlassLensOptions`, `GlassLensState`, `GlassLensFilterProps`, `PolymorphicProps`.
+Types are exported too: `GlassLevel`, `GlassTheme`, `GlassOwnProps`, `GlassButtonOwnProps`, `GlassFilterProps`, `GlassTiltOptions`, `GlassVibrancySource`, `GlassLensOptions`, `GlassLensState`, `GlassLensFilterProps`, `PolymorphicProps`.
 
 ---
 

@@ -67,8 +67,8 @@ Fidelity (`L1/L2/L3`) is one axis; **dependency** is the other. Everything in th
 | Tier | Dependency | Highlights |
 |---|---|---|
 | **1** | pure CSS/SVG | L1–L3, `.glass--clear`, `.glass--fresnel`, `.glass--apple` (chromatic + specular ceiling), components, gooey merge |
-| **2** | + JavaScript | `.glass--interactive` pointer specular, `useGlassLens` map, matched-geometry morph, *(planned)* tilt + adaptive vibrancy |
-| **3** | + WebGL | per-frame shader refraction (reference) |
+| **2** | + JavaScript | `.glass--interactive` pointer specular, `useGlassTilt` (gyro/pointer glint), `useGlassVibrancy` (adapt to backdrop), `useGlassLens` map, matched-geometry morph |
+| **3** | + WebGL | `createWebGLGlass` — per-frame shader refraction (reference) |
 
 ---
 

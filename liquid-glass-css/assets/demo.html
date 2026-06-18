@@ -118,6 +118,16 @@
     .apple-card { width: 260px; padding: 18px 20px; }
     .apple-btn { align-self: center; }
 
+    /* Adaptive-vibrancy stage: a drawable canvas backdrop so JS can sample it. */
+    .vib-stage { position: relative; border-radius: 18px; overflow: hidden; min-height: 260px; display: flex; gap: 24px; padding: 24px; align-items: center; }
+    .vib-bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+    .vib-card { position: relative; z-index: 1; width: 220px; }
+
+    /* Tier-3 WebGL stage: a drawable canvas backdrop + a GL glass panel over it. */
+    .gl-stage { position: relative; border-radius: 18px; overflow: hidden; min-height: 300px; }
+    .gl-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .gl-panel { position: absolute; left: 26%; top: 18%; border-radius: 24px; cursor: crosshair; }
+
     .page-head {
       display: flex;
       flex-wrap: wrap;
@@ -444,7 +454,50 @@
         <strong>ceiling</strong>: a no-JS gradient-map barrel refraction, real chromatic
         aberration, and a <code>feSpecularLighting</code> glint — + <code>.glass--fresnel</code>
         for the rim. Zero JavaScript on this card.
-        <!-- ponytail: adaptive vibrancy (lighten-over-dark) needs JS backdrop sampling — skipped. -->
+        <!-- Adaptive vibrancy (lighten-over-dark) is the one trait this card can't
+             do — it needs JS to sample the backdrop. See the Tier-2 section below. -->
+      </p>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- ADAPTIVE VIBRANCY (Tier 2) — glass retunes to the backdrop it covers. -->
+    <!-- ================================================================= -->
+    <section>
+      <h2>Adaptive vibrancy — Tier 2 (JS samples the backdrop)</h2>
+      <div class="vib-stage">
+        <canvas id="vibBg" class="vib-bg" width="900" height="260" aria-hidden="true"></canvas>
+        <article class="glass glass--l2 glass-card vib-card" data-vib>
+          <div class="card-value">Dark side</div>
+          <div class="card-foot">light glass + light text — auto</div>
+        </article>
+        <article class="glass glass--l2 glass-card vib-card" data-vib style="margin-left:auto">
+          <div class="card-value">Light side</div>
+          <div class="card-foot">dark glass + dark text — auto</div>
+        </article>
+      </div>
+      <p class="legend" style="margin-top:14px">
+        Each card samples the canvas behind it (<code>glass-vibrancy.js</code>) and flips its
+        tint + text colour for legibility — light glass over the dark half, dark glass over the
+        light half. Needs a <strong>drawable</strong> backdrop (img/canvas/video); it can't read
+        arbitrary DOM (snapshot to a canvas, or use the Tier-3 WebGL path).
+      </p>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- WEBGL GLASS (Tier 3) — per-frame shader refraction, cross-browser. -->
+    <!-- ================================================================= -->
+    <section>
+      <h2>WebGL glass — Tier 3 (per-frame shader, cross-browser)</h2>
+      <div class="gl-stage">
+        <canvas id="glBg" class="gl-bg" width="760" height="300" aria-hidden="true"></canvas>
+        <canvas id="glPanel" class="gl-panel" width="320" height="190"></canvas>
+      </div>
+      <p class="legend" style="margin-top:14px">
+        A fragment shader (<code>glass-webgl.js</code>) refracts + chromatically disperses + lights
+        the canvas behind it, per frame (move the cursor over the panel — the glint follows).
+        Works in <strong>every WebGL browser</strong> (Firefox/Safari too) and over live video — the
+        only path past the Chromium-only <code>url()</code> wall. A reference, not a drop-in: the
+        backdrop must be drawable (img/canvas/video), not arbitrary DOM.
       </p>
     </section>
 
@@ -683,6 +736,101 @@
     buildLens();
     // The map is size-specific — rebuild it whenever the card resizes.
     if (window.ResizeObserver && card) new ResizeObserver(buildLens).observe(card);
+  </script>
+
+  <!-- Tier 2 — useGlassTilt (vanilla): pointer (and gyro) steer the
+       #glass-specular fePointLight so the glint tracks the cursor / tilt. -->
+  <script>
+    (function () {
+      var stage = document.querySelector('.apple-card');
+      var light = document.querySelector('#glass-specular fePointLight');
+      if (!stage || !light) return;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var frame = 0;
+      function place(px, py) {
+        if (frame) return;
+        frame = requestAnimationFrame(function () {
+          frame = 0;
+          light.setAttribute('x', Math.round(px));
+          light.setAttribute('y', Math.round(py));
+        });
+      }
+      stage.addEventListener('pointermove', function (e) {
+        var r = stage.getBoundingClientRect();
+        if (!r.width) return;
+        place(e.clientX - r.left, e.clientY - r.top);
+      });
+      window.addEventListener('deviceorientation', function (e) {
+        var r = stage.getBoundingClientRect();
+        var gx = (e.gamma || 0) / 45, gy = ((e.beta || 0) - 45) / 45;
+        place(r.width * (0.5 + gx * 0.5), r.height * (0.5 + gy * 0.5) - 30);
+      });
+    })();
+  </script>
+
+  <!-- Tier 2 — adaptive vibrancy: paint a drawable canvas backdrop, then each
+       card samples the region behind it and retunes its tint for legibility. -->
+  <script type="module">
+    import { applyVibrancy } from './glass-vibrancy.js';
+    const cv = document.getElementById('vibBg');
+    if (cv) {
+      const ctx = cv.getContext('2d');
+      const g = ctx.createLinearGradient(0, 0, cv.width, 0);
+      g.addColorStop(0, '#0a0a12');
+      g.addColorStop(0.5, '#3a2a6a');
+      g.addColorStop(1, '#f3eede');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.fillStyle = 'rgba(255,120,40,0.45)';
+      ctx.beginPath();
+      ctx.arc(cv.width * 0.7, 130, 90, 0, Math.PI * 2);
+      ctx.fill();
+      const apply = () => document.querySelectorAll('[data-vib]').forEach((c) => applyVibrancy(c, cv));
+      apply();
+      window.addEventListener('resize', apply);
+    }
+  </script>
+
+  <!-- Tier 3 — WebGL glass: paint a drawable canvas backdrop, then a shader
+       refracts the slice of it behind the GL panel, per frame. -->
+  <script type="module">
+    import { createWebGLGlass } from './glass-webgl.js';
+    const bg = document.getElementById('glBg');
+    const panel = document.getElementById('glPanel');
+    if (bg && panel) {
+      const ctx = bg.getContext('2d');
+      let g;
+      if (ctx.createConicGradient) {
+        g = ctx.createConicGradient(0.4, bg.width * 0.4, bg.height * 0.5);
+      } else {
+        g = ctx.createLinearGradient(0, 0, bg.width, bg.height);
+      }
+      [[0, '#ff6a3d'], [0.16, '#ffd23f'], [0.33, '#2bd4a7'], [0.5, '#3d7bff'], [0.66, '#b14dff'], [0.83, '#ff2d78'], [1, '#ff6a3d']].forEach(([o, c]) => g.addColorStop(o, c));
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, bg.width, bg.height);
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i <= bg.width; i += 26) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, bg.height); ctx.stroke(); }
+      for (let j = 0; j <= bg.height; j += 26) { ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(bg.width, j); ctx.stroke(); }
+      const regionOf = () => {
+        const pr = panel.getBoundingClientRect();
+        const br = bg.getBoundingClientRect();
+        return [(pr.left - br.left) / br.width, (pr.top - br.top) / br.height, pr.width / br.width, pr.height / br.height];
+      };
+      let glass = null;
+      try {
+        glass = createWebGLGlass(panel, bg, { region: regionOf(), radius: 24, bezel: 30 });
+      } catch (e) {
+        console.warn('WebGL glass unavailable:', e); // graceful: panel stays blank
+      }
+      panel.addEventListener('pointermove', (e) => {
+        if (!glass) return;
+        const r = panel.getBoundingClientRect();
+        glass.setLight((e.clientX - r.left) / r.width, 1 - (e.clientY - r.top) / r.height);
+      });
+      // the region is element-relative — recompute it when the layout reflows
+      window.addEventListener('resize', () => { if (glass) glass.setRegion(regionOf()); });
+    }
   </script>
 </body>
 </html>
