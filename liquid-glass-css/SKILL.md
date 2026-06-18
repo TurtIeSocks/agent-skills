@@ -247,7 +247,7 @@ Load only what the task needs — these are heavy.
 | L1/L2/L3 in full, the `#glass-refract` filter, the `.glass--apple` pure-CSS/SVG ceiling, gradient-rim, browser-support matrix, fallback chain | `references/levels.md` |
 | Full CSS for all 5 components + every interaction state, modal + scrim + fixed-position note, prominent button | `references/components.md` |
 | Tailwind v4: `@theme` tokens, `@utility glass`, vanilla→utility class-mapping table, L3 arbitrary-value note | `references/tailwind-v4.md` |
-| React: `<GlassCard>/<GlassButton>/<GlassPanel>/<GlassModal>`, `useGlassPointer`, `<GlassFilter>`, SSR/Next.js notes | `references/react.md` |
+| React: `<GlassCard>/<GlassButton>/<GlassPanel>/<GlassModal>`, all hooks (`useGlassPointer`, `useGlassTilt`, `useGlassVibrancy`, `useGlassLens`, `useGlassMorphTransition`), `<GlassFilter>`, SSR/Next.js notes | `references/react.md` |
 | Morphing: matched-geometry (framer-motion `layoutId` / vanilla FLIP), gooey merge (`#glass-goo`), shader morph | `references/morphing.md` |
 | `@supports` patterns, `prefers-reduced-transparency`/`-motion`/`-contrast`, contrast-on-glass (WCAG), perf, "don't glass everything" | `references/fallbacks-a11y.md` |
 
@@ -256,8 +256,11 @@ Copy-paste artifacts in `assets/`:
 | Want a… | Copy from |
 |---|---|
 | Drop-in stylesheet (tokens + 3 presets + L1–L3 + components + fallbacks) | `assets/glass.css` |
-| Self-contained live demo (morph/merge toggles, theme switcher) | `assets/demo.html` |
-| Typed React components + `useGlassPointer` + `<GlassFilter>` | `assets/Glass.tsx` |
+| Self-contained live demo (all tiers — refraction, vibrancy, WebGL, morph) | `assets/demo.html` |
+| Typed React components + every hook + `<GlassFilter>` | `assets/Glass.tsx` |
+| **Tier 2** — backdrop-luminance vibrancy sampler (`.js` + `.d.ts`) | `assets/glass-vibrancy.js` |
+| **Tier 2** — canvas SDF displacement-map generator for `.glass--lens` | `assets/displacement-map.js` |
+| **Tier 3** — WebGL reference: per-frame shader refraction | `assets/glass-webgl.js` |
 
 ---
 
