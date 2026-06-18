@@ -302,9 +302,53 @@ return (
 
 `useGlassLens<T>(options?)` returns `{ ref, map, size }`; `<GlassLensFilter>` takes `id` (default `glass-refract-lens`), `href`, `width`, `height`, and `scale` (default `40` — the `feDisplacementMap` strength). For several differently-sized lens surfaces, render one `GlassLensFilter` per size with distinct `id`s.
 
-> **Going further — chromatic aberration.** Real lenses split colour at the rim: red, green, and blue refract by slightly different amounts (the coloured fringing you see at a magnifier's edge). The blue channel of the map is currently unused — one route is to run *two* `feDisplacementMap` passes at slightly offset `scale` values and recombine the R vs B channels with a small offset, so the rim fringes faintly. Out of scope for the shipped filter, but the encoding leaves room for it.
+> **Going further — chromatic aberration.** Real lenses split colour at the rim: red, green, and blue refract by slightly different amounts (the coloured fringing you see at a magnifier's edge). The blue channel of the map is currently unused — one route is to split the displaced backdrop into R/G/B channels and offset them with `feOffset`. **This is now shipped** in `.glass--apple` — see *Pure CSS/SVG ceiling* below.
 
 The whole technique — SDF-driven displacement map, the Snell's-law derivation behind it, and the `feImage` wiring — is adapted from kube.io's write-up: **<https://kube.io/blog/liquid-glass-css-svg/>**. `makeDisplacementMap` is a practical approximation of that derivation — close enough for UI, far cheaper to reason about.
+
+---
+
+## Pure CSS/SVG ceiling — chromatic refraction + specular glint (`.glass--apple`)
+
+`.glass--apple` is the most Apple-accurate refraction achievable **without JavaScript**. It stacks two SVG filters — mount both once; copy the verbatim `<filter>` defs from [`assets/demo.html`](../assets/demo.html) (render-verified):
+
+- **`#glass-refract-svg`** — a **no-JS displacement map** built as a data-URI SVG: two edge-compressed `<linearGradient>`s (R horizontal, G vertical) screen-blended into a barrel map, fed to `feDisplacementMap`. Being a gradient (not a fixed-pixel canvas image) it **stretches to any element size** — no `useGlassLens`, no resize handling. Then **real chromatic aberration**: split the displaced backdrop into R/G/B with `feColorMatrix`, offset R `+2.8px` and B `−2.8px` with `feOffset`, recombine with `feBlend mode="screen"`. The rim fringes red/cyan like a real lens.
+- **`#glass-specular`** — a physically-based rim glint: `feSpecularLighting` treats the card's blurred `SourceAlpha` as a bump map, lights it with an `fePointLight`, and clips back to the shape. Painted as the `.glass--apple::after` overlay (`mix-blend-mode: screen`).
+
+Compose with `--clear` and `--fresnel` for the full look:
+
+```html
+<article class="glass glass--clear glass--apple glass--fresnel">…</article>
+```
+
+The specular filter in full (short enough to inline):
+
+```html
+<filter id="glass-specular" x="-20%" y="-20%" width="140%" height="140%">
+  <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="bump"/>
+  <feSpecularLighting in="bump" surfaceScale="12" specularConstant="1.3"
+      specularExponent="18" lighting-color="#ffffff" result="spec">
+    <fePointLight x="120" y="-30" z="120"/>
+  </feSpecularLighting>
+  <feComposite in="spec" in2="SourceAlpha" operator="in"/>
+</filter>
+```
+
+**A moving glint, still no JS** — add a SMIL `<animate>` to sweep the light:
+
+```html
+<fePointLight x="120" y="-30" z="120">
+  <animate attributeName="x" values="10;360;10" dur="6s" repeatCount="indefinite"/>
+</fePointLight>
+```
+
+Caveats:
+- **Heavy** — two filter chains on the backdrop. Reserve `.glass--apple` for **one hero element**, never a list; use `.glass--l2`/`.glass--l3` for everything else.
+- **Chromium-only**, like every `url()` backdrop filter; degrades to the L2 solid via `@supports` (Safari/Firefox).
+- **SMIL ignores `prefers-reduced-motion`** — so the shipped glint is static and the sweep is opt-in. The CSS a11y blocks still drop the `::after` glint under reduced-transparency / high-contrast.
+- **Adaptive vibrancy** (glass auto-lightening over dark content) is the one trait still needing JS to sample the backdrop.
+
+Adapted from [kube.io](https://kube.io/blog/liquid-glass-css-svg/) (displacement), [atlaspuplabs](https://atlaspuplabs.com/blog/liquid-glass-but-in-css) (gradient map + chromatic split), and [MDN `feSpecularLighting`](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/feSpecularLighting).
 
 ---
 

@@ -325,6 +325,42 @@
     inset -9px -9px 22px rgb(255 245 210 / 0.12);
 }
 
+/* -----------------------------------------------------------------------------
+   .glass--apple : the pure-CSS/SVG CEILING — the most Apple-accurate refraction
+   we can do without JS. Stacks two SVG filters (mount both once; defs live in
+   assets/demo.html / references/levels.md):
+     #glass-refract-svg : a no-JS data-URI gradient displacement map (barrel
+       lensing, scales to any size) + real chromatic aberration (RGB channel
+       split via feColorMatrix/feOffset/feBlend).
+     #glass-specular    : a feSpecularLighting rim glint from the shape's alpha,
+       composited as the ::after overlay.
+   Use INSTEAD of --l3 / --lens (it owns backdrop-filter and ::after). Compose
+   with --clear + --fresnel for the full look: "glass glass--clear glass--apple
+   glass--fresnel". Chromium-only (like all url() backdrop filters); degrades to
+   the L2 solid via @supports.
+
+   ponytail: HEAVY — a two-filter chain on the backdrop. Reserve for ONE hero
+   element; use --l2/--l3 for lists. Glint is static; add an <animate> to the
+   fePointLight for a sweep (SMIL ignores prefers-reduced-motion, so opt-in only).
+   --------------------------------------------------------------------------- */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass--apple {
+    -webkit-backdrop-filter: blur(5px) saturate(180%) url(#glass-refract-svg);
+    backdrop-filter: blur(5px) saturate(180%) url(#glass-refract-svg);
+  }
+}
+.glass--apple::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #000;
+  filter: url(#glass-specular);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 2;
+}
+
 
 /* -----------------------------------------------------------------------------
    6) COMPONENTS — same tokens, different geometry + interaction states.
@@ -570,6 +606,12 @@
   .glass-scrim {
     background: rgb(0 0 0 / 0.7);
   }
+  .glass--l2::before,
+  .glass--l3::after,
+  .glass--apple::after,
+  .glass--interactive::before {
+    display: none;
+  }
 }
 
 /* Higher contrast: same opaque treatment plus a firmer rim, and we drop the
@@ -594,6 +636,7 @@
   }
   .glass--l2::before,
   .glass--l3::after,
+  .glass--apple::after,
   .glass--interactive::before {
     display: none;
   }

@@ -286,6 +286,32 @@
         <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo"/>
         <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
       </filter>
+
+      <!-- .glass--apple CEILING: no-JS barrel refraction (data-URI gradient
+           displacement map) + real chromatic aberration (RGB split). -->
+      <filter id="glass-refract-svg" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+        <feImage result="map" preserveAspectRatio="none"
+          href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cdefs%3E%3ClinearGradient id='x' x1='0' x2='1' y1='0' y2='0'%3E%3Cstop offset='0%25' stop-color='rgb(0,0,0)'/%3E%3Cstop offset='14%25' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='86%25' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='100%25' stop-color='rgb(255,0,0)'/%3E%3C/linearGradient%3E%3ClinearGradient id='y' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0%25' stop-color='rgb(0,0,0)'/%3E%3Cstop offset='14%25' stop-color='rgb(0,128,0)'/%3E%3Cstop offset='86%25' stop-color='rgb(0,128,0)'/%3E%3Cstop offset='100%25' stop-color='rgb(0,255,0)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23x)'/%3E%3Crect width='100' height='100' fill='url(%23y)' style='mix-blend-mode:screen'/%3E%3C/svg%3E" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="22" xChannelSelector="R" yChannelSelector="G" result="disp"/>
+        <feColorMatrix in="disp" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="cr"/>
+        <feOffset in="cr" dx="2.8" dy="0" result="cr2"/>
+        <feColorMatrix in="disp" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="cg"/>
+        <feColorMatrix in="disp" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="cb"/>
+        <feOffset in="cb" dx="-2.8" dy="0" result="cb2"/>
+        <feBlend in="cr2" in2="cg" mode="screen" result="crg"/>
+        <feBlend in="crg" in2="cb2" mode="screen"/>
+      </filter>
+
+      <!-- feSpecularLighting rim glint from the element's own alpha (applied to
+           the .glass--apple::after overlay). Static; add <animate> on the
+           fePointLight x for a sweep (SMIL ignores prefers-reduced-motion). -->
+      <filter id="glass-specular" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="bump"/>
+        <feSpecularLighting in="bump" surfaceScale="12" specularConstant="1.3" specularExponent="18" lighting-color="#ffffff" result="spec">
+          <fePointLight x="120" y="-30" z="120"/>
+        </feSpecularLighting>
+        <feComposite in="spec" in2="SourceAlpha" operator="in"/>
+      </filter>
     </defs>
   </svg>
 
@@ -404,18 +430,20 @@
           <span class="glass glass--clear glass--fresnel glass-pill">Library</span>
           <span class="glass glass--clear glass--fresnel glass-pill">Search</span>
         </nav>
-        <article class="glass glass--clear glass--l3 glass--fresnel glass--interactive apple-card">
+        <article class="glass glass--clear glass--apple glass--fresnel apple-card">
           <div class="lvl-tag">Now playing</div>
           <div class="card-value">Liquid Glass</div>
-          <div class="card-foot">clear + refraction + fresnel bezel + pointer specular</div>
+          <div class="card-foot">clear + SVG refraction + chromatic aberration + feSpecularLighting glint — no JS</div>
         </article>
         <button class="glass glass--fresnel glass--interactive glass-button glass-button--prominent apple-btn" type="button">Play</button>
       </div>
       <p class="legend" style="margin-top:14px">
         Apple's recipe = <strong>less</strong> blur + more refraction + a bright Fresnel bezel,
-        over rich content. <code>.glass--clear</code> thins the frost so light bends instead of
-        scattering; <code>.glass--fresnel</code> adds the rim (its cool+warm insets double as a
-        cheap chromatic fringe); <code>.glass--l3</code> bends the wallpaper behind.
+        over rich content. The hero card stacks <code>.glass--clear</code> (thins the frost so
+        light bends instead of scattering) + <code>.glass--apple</code> — the pure-CSS/SVG
+        <strong>ceiling</strong>: a no-JS gradient-map barrel refraction, real chromatic
+        aberration, and a <code>feSpecularLighting</code> glint — + <code>.glass--fresnel</code>
+        for the rim. Zero JavaScript on this card.
         <!-- ponytail: adaptive vibrancy (lighten-over-dark) needs JS backdrop sampling — skipped. -->
       </p>
     </section>
