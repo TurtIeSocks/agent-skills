@@ -118,6 +118,7 @@ If a tool supports user-defined prompt files or slash commands, this repo can be
 | `tanstack-form` | Build forms with TanStack Form + shadcn/ui + Zod. Render-prop field pattern, Zod schema validation, all shadcn field types, plus array, async, and dependent fields. | `tanstack-form/SKILL.md` |
 | `turfjs` | Routing guide to the Turf.js v7 geospatial API. Pick the right function for distance, area, buffer, point-in-polygon, intersection, clustering, and GeoJSON manipulation. Pairs with map libraries (Leaflet, Mapbox GL, etc.) for draw-then-compute flows. | `turfjs/SKILL.md` |
 | `typescript-string-literals` | TypeScript string literal unions, template literal types, key remapping, typed route/event strings, and compile-time string parsing patterns. | `typescript-string-literals/SKILL.md` |
+| `zustand-subscription-patterns` | Use when wiring React components to a Zustand store and deciding how to subscribe. | `zustand-subscription-patterns/SKILL.md` |
 
 ## Contributing new skills
 
