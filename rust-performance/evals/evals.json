@@ -1,0 +1,150 @@
+{
+  "skill_name": "rust-performance",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "A user says 'this Rust function is slow, make it fast' with no profile and no numbers. What does the skill say to do before editing code?",
+      "expected_output": "The loop from SKILL.md: confirm the numbers come from a release build and check [profile.release] (build-config), take an end-to-end baseline, profile on realistic data to locate the hotspot instead of guessing, fix at the highest applicable leverage level (algorithm > allocations > layout/collections > parallelism > codegen > unsafe), then re-measure and keep or revert. A predicted speedup is a hypothesis, not a result.",
+      "files": ["rust-performance/SKILL.md"],
+      "assertions": [
+        {"text": "States the measure/locate/fix/re-measure loop", "check": "grep -i 're-measure'"},
+        {"text": "Requires release-build sanity check first", "check": "grep -- '--release'"},
+        {"text": "Forbids guessing the hotspot", "check": "grep -i 'guess'"},
+        {"text": "Defines a leverage order with algorithm first", "check": "grep -i 'leverage'"},
+        {"text": "Puts unsafe last with measured justification", "check": "grep -i 'unsafe'"}
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "My hand-rolled Instant::now() benchmark reports 0ns and my optimization shows no difference. Why, and what should I use instead?",
+      "expected_output": "Two stacked bugs: debug build (cargo run without --release) and dead-code elimination of the unused pure result. Fix with std::hint::black_box on both input and output plus a release build, then move to a real harness: criterion with --save-baseline/--baseline comparison, divan, iai-callgrind for CI-stable instruction counts, hyperfine for whole-binary A/B. Also lists traps: tiny inputs, warm-cache-only, thermal throttle, micro-bench vs end-to-end (Amdahl).",
+      "files": ["rust-performance/references/benchmarking.md"],
+      "assertions": [
+        {"text": "Names dead-code elimination as the 0ns cause", "check": "grep -i 'dead-code\\|DCE'"},
+        {"text": "Prescribes black_box on input and output", "check": "grep 'black_box'"},
+        {"text": "Recommends criterion baseline comparison", "check": "grep 'save-baseline'"},
+        {"text": "Mentions iai-callgrind for noisy CI", "check": "grep 'iai-callgrind'"},
+        {"text": "Warns micro-benchmark is not production", "check": "grep -i 'Amdahl\\|end-to-end'"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Which profiler or measurement tool do I pick for: CPU hotspots, allocation counts, cache misses, async runtime stalls, and whole-binary A/B?",
+      "expected_output": "The tool-by-question table: samply / cargo flamegraph (CPU sampling), perf record or Instruments deeper, dhat-rs or heaptrack (allocations), perf stat -d (cache/branch misses, IPC), tokio-console (async), hyperfine (whole binary), iai-callgrind (CI), cargo bloat / cargo llvm-lines (size). Plus debug = \"line-tables-only\" or a [profile.profiling] section so release stacks have symbols, and profiling on realistic prod-shaped data.",
+      "files": ["rust-performance/references/profiling.md"],
+      "assertions": [
+        {"text": "Recommends samply and cargo flamegraph", "check": "grep 'samply'"},
+        {"text": "Covers allocation profiling via dhat/heaptrack", "check": "grep -i 'dhat\\|heaptrack'"},
+        {"text": "Covers perf stat for cache/IPC counters", "check": "grep 'perf stat'"},
+        {"text": "Shows how to keep symbols in release builds", "check": "grep 'line-tables-only'"},
+        {"text": "Demands realistic data sizes", "check": "grep -i 'realistic'"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "My hot loop is dominated by a HashMap<String, u64>. What are the hasher options and their security trade-offs, and how do I avoid allocating a String per lookup?",
+      "expected_output": "SipHash is DoS-resistant but slow on short keys; foldhash/ahash are the seeded 2-3x general-purpose upgrade; rustc-hash (FxHash) is fastest but has zero flood resistance so only for provably internal keys. Entry API kills double lookups but needs an owned key; the std pattern is get_mut on the borrowed &str then insert only on miss; entry_ref is a hashbrown API, NOT stable std. Pre-size with with_capacity.",
+      "files": ["rust-performance/references/collections-and-hashing.md"],
+      "assertions": [
+        {"text": "Names SipHash as the slow default", "check": "grep 'SipHash'"},
+        {"text": "Offers foldhash/ahash as seeded fast options", "check": "grep -i 'foldhash\\|ahash'"},
+        {"text": "States the DoS caveat for fxhash-style hashers", "check": "grep -i 'DoS'"},
+        {"text": "Shows the borrowed-lookup-then-insert pattern", "check": "grep 'get_mut'"},
+        {"text": "Corrects entry_ref as hashbrown, not std", "check": "grep 'entry_ref'"}
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "What release-profile and build-level wins can I take before changing any code?",
+      "expected_output": "lto (thin/fat), codegen-units = 1, panic = \"abort\" (with the catch_unwind semantics warning), strip, RUSTFLAGS -C target-cpu=native (portability caveat, x86-64-v3 middle ground), a global allocator swap (mimalloc/jemalloc) for alloc-heavy work, PGO via cargo-pgo once the workload is representative, plus pinned toolchain and lean dev debug info.",
+      "files": ["rust-performance/references/build-config.md"],
+      "assertions": [
+        {"text": "Sets lto in the release profile", "check": "grep 'lto'"},
+        {"text": "Sets codegen-units = 1", "check": "grep 'codegen-units'"},
+        {"text": "Warns panic=abort breaks catch_unwind", "check": "grep 'catch_unwind'"},
+        {"text": "Covers target-cpu=native with portability caveat", "check": "grep 'target-cpu'"},
+        {"text": "Offers global allocator swap", "check": "grep 'global_allocator'"},
+        {"text": "Mentions PGO tooling", "check": "grep -i 'cargo-pgo'"}
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "My axum service's p99 explodes under load and even cheap unrelated endpoints get slow. What's the diagnosis path and fix?",
+      "expected_output": "Signature of executor starvation: blocking or heavy CPU inside async fn parks a worker; cooperative scheduling means unrelated tasks queue behind it. Confirm with tokio-console (poll times should be micros). Fix: spawn_blocking wrapping the whole sequential chain in one hop, Semaphore to bound concurrent heavy work, dedicated pool for sustained CPU, regression greps for std::fs/::blocking/sync Mutex in async code.",
+      "files": ["rust-performance/references/async.md", "rust-performance/SKILL.md"],
+      "assertions": [
+        {"text": "Names cooperative scheduling / worker starvation", "check": "grep -i 'cooperativ\\|starv'"},
+        {"text": "Confirms with tokio-console poll times", "check": "grep 'tokio-console'"},
+        {"text": "Wraps the whole chain in one spawn_blocking", "check": "grep 'spawn_blocking'"},
+        {"text": "Bounds heavy concurrency with a Semaphore", "check": "grep 'Semaphore'"},
+        {"text": "Gives regression audit greps", "check": "grep -i 'grep\\|audit'"}
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Iteration over a big Vec of enums is slow and perf stat shows heavy cache misses. What layout levers does the skill offer?",
+      "expected_output": "Check size_of (const assert against a cache line); an enum is as big as its largest variant so Box the fat variant (clippy::large_enum_variant); niche optimization makes Option<Box<T>> free; repr(Rust) already reorders fields; AoS to SoA flip when hot loops sweep few fields; indices into a flat Vec instead of Box/Rc pointer chasing; sequential iteration order for the prefetcher.",
+      "files": ["rust-performance/references/data-layout.md"],
+      "assertions": [
+        {"text": "Checks type sizes with size_of", "check": "grep 'size_of'"},
+        {"text": "Boxes the large enum variant", "check": "grep -i 'large_enum_variant'"},
+        {"text": "Explains AoS vs SoA", "check": "grep -i 'SoA'"},
+        {"text": "Replaces pointer chasing with flat Vec indices", "check": "grep -i 'indices\\|NodeId'"},
+        {"text": "Notes repr(Rust) already reorders fields", "check": "grep 'repr'"}
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "When is get_unchecked acceptable, and what should be tried before it?",
+      "expected_output": "Last resort only: first iterate instead of index, hoist a slice bound so LLVM proves ranges, use chunks_exact/slice patterns for vectorization; get_unchecked only with a benchmark showing the bounds check is the bottleneck plus a written safety argument. Verify vectorization with cargo-show-asm rather than assuming.",
+      "files": ["rust-performance/references/iterators-and-bounds.md", "rust-performance/SKILL.md"],
+      "assertions": [
+        {"text": "Orders alternatives before get_unchecked", "check": "grep 'get_unchecked'"},
+        {"text": "Shows the slice-hoist bounds-check trick", "check": "grep -i 'hoist'"},
+        {"text": "Uses chunks_exact for vectorization", "check": "grep 'chunks_exact'"},
+        {"text": "Verifies codegen with cargo asm/Godbolt", "check": "grep -i 'cargo asm\\|godbolt'"},
+        {"text": "Requires a written safety argument", "check": "grep -i 'safety argument'"}
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Threads/rayon added but throughput barely moved. What does the skill point at?",
+      "expected_output": "Parallelize last (waste runs faster in parallel, Amdahl caps wins); per-item work must dwarf scheduling (~1us floor, with_min_len/par_chunks); contention ladder for Arc<Mutex> (shrink, shard, thread-local merge), RwLock/arc-swap for read-mostly, Relaxed atomics for counters, CachePadded for false sharing, and the busy-cores-vs-idle-cores differential to decide CPU-bound vs blocked.",
+      "files": ["rust-performance/references/parallelism.md"],
+      "assertions": [
+        {"text": "States the per-item work floor for rayon", "check": "grep 'with_min_len'"},
+        {"text": "Gives the contention ladder for shared Mutex", "check": "grep -i 'shard'"},
+        {"text": "Uses Relaxed atomics for counters", "check": "grep 'Relaxed'"},
+        {"text": "Names false sharing and CachePadded", "check": "grep 'CachePadded'"},
+        {"text": "Prefers local accumulate then merge", "check": "grep -i 'merge'"}
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Should this hot inner-loop callback be Box<dyn Fn> or generic, and where do #[inline] attributes actually help?",
+      "expected_output": "Generic (impl Fn) in the hot core: direct calls inline and optimize through; dyn for cold/heterogeneous paths. Real dyn cost is lost inlining, not the indirect branch. Monomorphization bloat measured with cargo llvm-lines/cargo bloat, contained with the inner-dyn thin-wrapper trick. #[inline]: nothing within a crate, small non-generic cross-crate fns, never scatter inline(always) without a benchmark; #[cold]/inline(never) for slow paths.",
+      "files": ["rust-performance/references/dispatch-and-inlining.md"],
+      "assertions": [
+        {"text": "Puts generics in the hot core, dyn in cold paths", "check": "grep 'dyn Trait'"},
+        {"text": "Identifies lost inlining as the real dyn cost", "check": "grep -i 'inlining'"},
+        {"text": "Measures monomorphization with cargo llvm-lines", "check": "grep 'llvm-lines'"},
+        {"text": "Warns inline(always) can pessimize", "check": "grep 'inline(always)'"},
+        {"text": "Offers cold attribute for slow paths", "check": "grep 'cold'"}
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "The profiler shows malloc/free wide in the flamegraph. What's the fix ladder for allocations?",
+      "expected_output": "Smell/fix table: clone-in-loop to borrowing, format! to write! into a reused String (itoa/ryu extreme), with_capacity, delete mid-pipeline collect, hoisted clear()+reuse buffers as the workhorse; then type-level: Box<str>/Arc<str>, SmallVec with its branch/size caveats, interning, arenas (bumpalo), serde borrow. Source fixes beat allocator swaps; don't contort lifetimes for cold-path clones.",
+      "files": ["rust-performance/references/allocations.md"],
+      "assertions": [
+        {"text": "Shows the clear-and-reuse buffer pattern", "check": "grep 'clear()'"},
+        {"text": "Pre-sizes with with_capacity", "check": "grep 'with_capacity'"},
+        {"text": "Kills mid-pipeline collect", "check": "grep -i 'collect'"},
+        {"text": "Gives SmallVec caveats, not blanket advice", "check": "grep -i 'SmallVec'"},
+        {"text": "Offers arenas for build-then-drop graphs", "check": "grep 'bumpalo'"},
+        {"text": "Cold-path clone is fine; hot-path clone is the target", "check": "grep -i 'cold'"}
+      ]
+    }
+  ]
+}
